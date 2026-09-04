@@ -5,215 +5,257 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dify 插件离线重打包</title>
 <style>
-  :root { --bg:#0f172a; --card:#1e293b; --line:#334155; --fg:#e2e8f0; --mut:#94a3b8;
-          --acc:#38bdf8; --ok:#4ade80; --err:#f87171; --warn:#fbbf24; }
-  * { box-sizing:border-box }
-  body { margin:0; font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
-         background:var(--bg); color:var(--fg); }
-  .wrap { max-width:960px; margin:0 auto; padding:24px 16px 80px; }
-  h1 { font-size:22px } h2 { font-size:16px; margin:26px 0 10px; color:var(--acc) }
-  .mut { color:var(--mut); font-size:13px }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:10px 0 }
-  #drop { border:2px dashed var(--line); border-radius:12px; padding:36px 16px; text-align:center;
-          cursor:pointer; transition:.15s; background:rgba(56,189,248,.03) }
-  #drop.over, #drop:hover { border-color:var(--acc); background:rgba(56,189,248,.08) }
-  #drop b { font-size:16px }
-  .row { display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-top:14px }
-  label { font-size:13px; color:var(--mut) }
-  select, input[type=text] { background:#0f172a; color:var(--fg); border:1px solid var(--line);
-          border-radius:8px; padding:8px 10px; font-size:13px }
-  button { background:var(--acc); color:#082f49; border:0; border-radius:8px; padding:10px 20px;
-           font-size:14px; font-weight:600; cursor:pointer }
-  button:disabled { opacity:.45; cursor:not-allowed }
-  .bar { height:8px; background:#0f172a; border-radius:6px; overflow:hidden; margin:8px 0 }
-  .bar > i { display:block; height:100%; width:0%; background:linear-gradient(90deg,#38bdf8,#818cf8);
-             transition:width .4s }
-  .job { border-left:4px solid var(--line) }
-  .job.done { border-left-color:var(--ok) } .job.failed { border-left-color:var(--err) }
-  .tag { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; margin-left:6px;
-         background:#0f172a; color:var(--mut); border:1px solid var(--line) }
-  .tag.ok { color:var(--ok) } .tag.err { color:var(--err) }
-  .actions { margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap }
-  .link { color:var(--acc); font-size:13px; text-decoration:none }
-  .mono { font-family:Consolas,monospace; font-size:12px; background:#0f172a; padding:8px 10px;
-          border-radius:8px; overflow:auto; white-space:pre; border:1px solid var(--line) }
-  .errbox { color:var(--err); font-size:13px; white-space:pre-wrap; margin-top:8px }
-  .okbox { color:var(--ok); font-size:13px }
-  .warnbox { color:var(--warn); font-size:13px }
-  details { margin-top:6px }
-  summary { cursor:pointer; color:var(--acc); font-size:13px }
-  ul { padding-left:20px } li { margin:4px 0; font-size:14px }
-  button.mini { font-size:12px; padding:5px 12px; background:#334155; color:#e2e8f0; border-radius:6px }
-  button.mini:hover { background:#475569 }
-  button.mini.danger:hover { background:#7f1d1d; color:#fecaca }
-  .empty { color:var(--mut); font-size:14px; padding:18px; text-align:center }
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --line:#e2e6ec; --line2:#d7dce4;
+    --fg:#1c2430; --mut:#66707d; --acc:#2563eb; --acc2:#1d4ed8;
+    --ok:#15803d; --err:#b91c1c; --warn:#b45309; --chip:#eef1f6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",Roboto,sans-serif}
+  a{color:var(--acc);text-decoration:none}
+  .top{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  .top-in{max-width:1080px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:14px}
+  .brand{font-size:17px;font-weight:700;letter-spacing:.2px}
+  .brand small{color:var(--mut);font-weight:500;margin-left:8px;font-size:12px}
+  .ver{margin-left:auto;color:var(--mut);font-size:12px}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px 20px 90px}
+  h2{font-size:15px;margin:26px 0 10px;color:#3b4657}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);background:#fff;
+       color:#2a3342;padding:7px 13px;border-radius:7px;font-size:13px;cursor:pointer}
+  .btn:hover{background:#f2f4f8}
+  .btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+  .btn.primary:hover{background:var(--acc2)}
+  .btn.danger:hover{background:#fdeaea;border-color:#eeb8b8;color:var(--err)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn.sm{padding:3px 9px;font-size:12px}
+  .drop{border:1.5px dashed var(--line2);border-radius:10px;padding:34px 18px;text-align:center;
+        background:#fbfcfe;cursor:pointer;color:var(--mut)}
+  .drop.drag{border-color:var(--acc);background:#eef4ff}
+  .drop b{color:var(--fg);font-size:15px;display:block;margin-bottom:4px}
+  .files{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px}
+  .fchip{background:var(--chip);border:1px solid var(--line);padding:4px 10px;border-radius:999px;font-size:12px;color:#3a4555}
+  .opts{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0;align-items:center}
+  label{font-size:13px;color:var(--mut)}
+  select,input[type=text]{background:#fff;border:1px solid var(--line2);border-radius:7px;padding:7px 9px;font-size:13px;color:var(--fg)}
+  input[type=checkbox]{accent-color:var(--acc)}
+  .urlrow{display:flex;gap:8px;margin-top:12px}
+  .urlrow input[type=text]{flex:1}
+  .hint{color:var(--mut);font-size:12px;margin-top:10px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--mut);font-weight:600;padding:9px 10px;border-bottom:1px solid var(--line2);font-size:12px}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
+  .tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:11px;background:var(--chip);color:#4a5568;border:1px solid var(--line)}
+  .tag.ok{color:var(--ok);background:#ecfdf3;border-color:#b7ebc5}
+  .tag.err{color:var(--err);background:#fef2f2;border-color:#f6caca}
+  .tag.acc{color:var(--acc2);background:#eff6ff;border-color:#c5dcff}
+  .jobline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 14px;border-bottom:1px solid var(--line)}
+  .jobline:last-child{border-bottom:none}
+  .grow{flex:1;min-width:240px}
+  .bar{height:6px;background:#edf0f5;border-radius:4px;overflow:hidden;margin-top:7px}
+  .bar>i{display:block;height:100%;background:var(--acc);width:0%;transition:width .4s}
+  .meta{color:var(--mut);font-size:12px;margin-top:4px}
+  .errbox{color:var(--err);font-size:12px;white-space:pre-wrap;margin-top:6px;max-height:90px;overflow:auto}
+  .empty{color:var(--mut);text-align:center;padding:26px 0;font-size:13px}
+  .right{display:flex;gap:6px;align-items:center}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:880px){.grid2{grid-template-columns:1fr}}
+  .foot{color:#98a1ad;font-size:12px;text-align:center;margin-top:34px}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>🛠️ Dify 插件离线重打包</h1>
-  <p class="mut">上传官方（或第三方）<code>.difypkg</code>，工具将把全部 Python 依赖（linux cp312 双架构 wheel）打进包内，生成<b>可在完全离线 Dify（1.16+/1.17，plugin_daemon 0.6.10）上本地安装</b>的离线包。打包机需可访问 PyPI。</p>
+<header class="top"><div class="top-in">
+  <div class="brand">Dify 插件离线重打包<span class="ver" id="appver"></span></div>
+  <div class="ver">把官方插件重打包为可离线安装的 .difypkg</div>
+</div></header>
 
-  <div class="card">
-    <div id="drop">
-      <b>点击或拖拽 .difypkg 到此处</b><br>
-      <span class="mut" id="fname">尚未选择文件（如 webscraper.difypkg）</span>
+<main class="wrap">
+
+  <h2>新建转换任务</h2>
+  <div class="card" style="padding:16px">
+    <div class="drop" id="drop">
+      <b>选择或拖入一个或多个 .difypkg</b>
+      支持官方市场下载包 / 本地文件 / 直接粘贴下载地址
     </div>
-    <input type="file" id="file" accept=".difypkg,.zip" hidden>
-    <div class="row">
+    <input type="file" id="file" accept=".difypkg,.zip" multiple hidden>
+    <div class="files" id="picked"></div>
+
+    <div class="urlrow">
+      <input type="text" id="url" placeholder="或粘贴插件 .difypkg 下载地址（如 https://marketplace.dify.ai/.../download）">
+      <button class="btn" id="urlgo">从 URL 上传</button>
+    </div>
+
+    <div class="opts">
       <label>目标架构
         <select id="arch">
-          <option value="both">amd64 + arm64（单包双架构，推荐）</option>
-          <option value="x86_64">仅 amd64 (x86_64)</option>
-          <option value="aarch64">仅 arm64 (aarch64)</option>
+          <option value="both">amd64 + arm64（推荐）</option>
+          <option value="x86_64">仅 amd64</option>
+          <option value="aarch64">仅 arm64</option>
         </select>
       </label>
-      <label>PyPI 源（打包机）
-        <input type="text" id="index" value="https://pypi.org/simple" size="30">
+      <label>PyPI 源
+        <input type="text" id="index" value="https://pypi.org/simple" size="26">
       </label>
-      <label style="display:flex;align-items:center;gap:6px">
-        <input type="checkbox" id="sign" style="width:16px;height:16px"> 用组织私钥自签（安全路径）
-      </label>
-      <button id="go" disabled>开始重打包</button>
+      <label><input type="checkbox" id="sign" style="vertical-align:-1px"> 组织私钥自签（安全路径）</label>
+      <span style="flex:1"></span>
+      <button class="btn primary" id="go" disabled>批量转换（0 个文件）</button>
     </div>
-    <div class="row"><span class="mut">目标 python 固定 3.12（与 plugin_daemon 一致）；内部先 uv 精确锁定，再按 PEP425 标签抓取 wheel 并做 sha256 校验，最后注入 <code>wheels/</code> 与离线依赖配置。勾选自签需服务端配置私钥（<code>DIFY_OFFLINE_PRIVATE_KEY</code>），目标端配合第三方公钥验签即可保持 <code>FORCE_VERIFYING_SIGNATURE=true</code>。</span></div>
+    <div class="hint">流程：uv 精确锁定（cp312）→ 抓取双架构 wheel（含 abi3/sdist 后备，sha256 校验）→ 注入 wheels/ 与离线配置 → 离线闭包自检。目标端 Dify 需放行尺寸并选择验签策略（见页脚说明与 docs/05）。</div>
   </div>
 
-  <h2>任务队列
-    <button id="clear-failed" style="margin-left:12px;font-size:12px;background:#334155;color:#e2e8f0" disabled>🗑 清除失败任务</button>
-  </h2>
-  <div id="jobs"><div class="empty">暂无任务</div></div>
+  <div class="grid2">
+    <section>
+      <div class="toolbar">
+        <h2 style="margin:0">产物版本库</h2>
+        <span style="flex:1"></span>
+        <a class="btn sm" id="dlall" href="/api/download-all">打包下载全部</a>
+      </div>
+      <div class="card" style="margin-top:8px"><div id="arts"><div class="empty">暂无已完成产物</div></div></div>
+    </section>
 
-  <h2>目标端部署说明（离线 Dify）</h2>
-  <div class="card">
-    <ol>
-      <li>把生成的 <code>…-offline.difypkg</code> 拷贝进内网。</li>
-      <li>在 Dify 部署目录的 <code>.env</code> 增加/调整（快速路径；安全路径见文档）：</li>
-    </ol>
-    <div class="mono">FORCE_VERIFYING_SIGNATURE=false
-PLUGIN_MAX_PACKAGE_SIZE=524288000
-NGINX_CLIENT_MAX_BODY_SIZE=500M</div>
-    <ul style="margin-top:10px">
-      <li>前一项：放行未上架/被重打包签名的本地插件（生产建议改用“自签+第三方公钥”安全路径，本期文档详述）；</li>
-      <li>后两项：离线包通常大于默认 50MB 限制（上传与解压双重限制）。</li>
-    </ul>
-    <div class="mono">docker compose up -d plugin_daemon nginx</div>
-    <p class="mut" style="margin-top:8px">3. 打开 Dify → <b>插件 → 本地文件安装</b> → 上传离线包 → 安装成功后即可使用（无需外网，依赖从包内 <code>wheels/</code> 安装）。</p>
+    <section>
+      <div class="toolbar">
+        <h2 style="margin:0">任务队列</h2>
+        <span style="flex:1"></span>
+        <button class="btn sm danger" id="clear-failed" disabled>清除失败任务</button>
+      </div>
+      <div class="card" style="margin-top:8px"><div id="jobs"><div class="empty">暂无任务</div></div></div>
+    </section>
   </div>
-</div>
+
+  <div class="foot">目标端：FORCE_VERIFYING_SIGNATURE=false（快速）或第三方公钥验签（安全）· PLUGIN_MAX_PACKAGE_SIZE / NGINX_CLIENT_MAX_BODY_SIZE 需放行 · 插件在本机与插件市场下载说明见 docs/</div>
+</main>
 
 <script>
-const $ = s => document.querySelector(s);
-let polling = false, jobsSeen = {};
+const $=s=>document.querySelector(s);
+let polling=false, files=[], jobsSeen={};
 
-const drop = $('#drop'), fin = $('#file');
-drop.addEventListener('click', () => fin.click());
-drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
-drop.addEventListener('dragleave', () => drop.classList.remove('over'));
-drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over');
-  if (e.dataTransfer.files.length) fin.files = e.dataTransfer.files; showName(); });
-fin.addEventListener('change', showName);
-function showName() { $('#fname').textContent = fin.files[0] ? fin.files[0].name : '尚未选择文件';
-  $('#go').disabled = !fin.files[0]; }
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtBytes=n=>{ if(n==null)return''; if(n<1048576)return(n/1024).toFixed(0)+' KB'; return(n/1048576).toFixed(1)+' MB'; };
+const fmtTime=t=> t? new Date(t*1000).toLocaleString('zh-CN',{hour12:false}) :'';
+const archTxt=a=>(a||[]).join(' + ');
 
-$('#go').addEventListener('click', async () => {
-  if (!fin.files[0]) return;
-  const fd = new FormData();
-  fd.append('file', fin.files[0]);
-  fd.append('arch', $('#arch').value);
-  fd.append('index_url', $('#index').value.trim() || 'https://pypi.org/simple');
-  fd.append('sign', $('#sign').checked ? 'true' : 'false');
-  const r = await fetch('/api/jobs', { method:'POST', body: fd });
-  const j = await r.json();
-  if (!r.ok) { alert('提交失败: ' + (j.detail || r.status)); return; }
-  jobsSeen[j.id] = 1; startPoll();
-});
+/* ---------- meta ---------- */
+fetch('/api/meta').then(r=>r.json()).then(m=>{ $('#appver').textContent='v'+m.app_version+' · 引擎 '+m.engine_version; }).catch(()=>{});
 
-function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-function startPoll(){
-  if (polling) return;
-  polling = true;
-  const t = setInterval(async () => {
-    try {
-      const r = await fetch('/api/jobs'); const list = await r.json();
-      renderJobs(list);
-      const active = list.filter(x => x.status === 'queued' || x.status === 'running');
-      if (!active.length && !list.some(x => !jobsSeen[x.id])) { clearInterval(t); polling = false; }
-      jobsSeen = {}; list.forEach(x => jobsSeen[x.id] = 1);
-    } catch (e) { /* keep polling */ }
-  }, 1500);
+/* ---------- file picker ---------- */
+const drop=$('#drop'), fin=$('#file');
+drop.onclick=()=>fin.click();
+drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag');};
+drop.ondragleave=()=>drop.classList.remove('drag');
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag'); if(e.dataTransfer.files.length){fin.files=e.dataTransfer.files;} pick();};
+fin.onchange=pick;
+function pick(){
+  files=Array.from(fin.files||[]);
+  $('#picked').innerHTML=files.map(f=>`<span class="fchip">${esc(f.name)}</span>`).join('');
+  $('#go').disabled=!files.length;
+  $('#go').textContent=files.length?`批量转换（${files.length} 个文件）`:'批量转换（0 个文件）';
 }
 
-function renderJobs(list){
-  const box = $('#jobs');
-  if (!list.length){ box.innerHTML = '<div class="empty">暂无任务</div>'; }
-  else { box.innerHTML = list.map(jobCard).join(''); }
-  const hasFailed = list.some(x => x.status === 'failed' || x.status === 'error');
-  $('#clear-failed').disabled = !hasFailed;
-}
+/* ---------- submit ---------- */
+const formData=()=>({arch:$('#arch').value, index_url:$('#index').value.trim()||'https://pypi.org/simple', sign:$('#sign').checked?'true':'false'});
 
-function jobCard(j) {
-    const archTxt = (j.archs||[]).join(' + ');
-    const st = j.status;
-    const cls = st === 'done' ? 'job done' : st === 'failed' || st === 'error' ? 'job failed' : 'job';
-    const tag = st === 'done' ? '<span class="tag ok">✓ 完成</span>'
-             : st === 'failed' || st === 'error' ? '<span class="tag err">✗ 失败</span>'
-             : '<span class="tag">… ' + esc(j.status) + '</span>';
-    const sigTag = j.signed ? '<span class="tag ok">自签</span>' : '';
-    const pct = j.progress ?? 0;
-    const acts = [];
-    if (st === 'done' && j.artifact_file){
-      acts.push(`<a class="link" href="/api/jobs/${j.id}/download"><b>⬇ 下载${j.signed ? '签名' : ''}离线包</b></a>`);
-      acts.push(`<a class="link" href="/api/jobs/${j.id}/report" target="_blank">报告 JSON</a>`);
-    }
-    if (st === 'failed' || st === 'error'){
-      acts.push(`<button class="mini" data-act="retry" data-id="${j.id}">↻ 重试</button>`);
-    }
-    if (st === 'done' || st === 'failed' || st === 'error'){
-      acts.push(`<button class="mini danger" data-act="del" data-id="${j.id}">删除</button>`);
-    }
-    if (j.ok === true && j.wheels != null) acts.push(`<span class="mut">锁定 ${j.locked} · 内嵌 wheel ${j.wheels}</span>`);
-    const errs = (j.errors||[]).map(e => esc(e)).join('\n');
-    return `<div class="card ${cls}">
-      <div><b>${esc(j.filename)}</b> <span class="tag">${esc(archTxt)}</span> ${tag} ${sigTag}</div>
-      <div class="bar"><i style="width:${Math.max(0,Math.min(100,pct))}%"></i></div>
-      <div class="mut">${esc(j.phase||'')} (${pct}%)</div>
-      ${errs ? `<div class="errbox">${errs}</div>` : ''}
-      <div class="actions">${acts.join('')}</div>
-    </div>`;
-}
-
-async function refreshNow(){
-  try { const r = await fetch('/api/jobs'); renderJobs(await r.json()); } catch (e) {}
-}
-
-$('#clear-failed').addEventListener('click', async () => {
-  if (!confirm('确定清除所有失败任务？')) return;
-  const r = await fetch('/api/jobs/clear-failed', { method:'POST' });
-  const d = await r.json().catch(()=>({}));
-  alert('已清除失败任务：' + (d.removed||[]).length + ' 个');
-  refreshNow();
-});
-
-$('#jobs').addEventListener('click', async (ev) => {
-  const btn = ev.target.closest('button[data-act]');
-  if (!btn) return;
-  const id = btn.dataset.id, act = btn.dataset.act;
-  if (act === 'retry') {
-    if (!confirm('确定重试该任务？将按原上传与配置重新打包。')) return;
-    const r = await fetch(`/api/jobs/${id}/retry`, { method:'POST' });
-    if (!r.ok) { alert('重试失败：' + (await r.text())); return; }
-    startPoll(); refreshNow();
-  } else if (act === 'del') {
-    if (!confirm('确定删除该任务及其产物？')) return;
-    const r = await fetch(`/api/jobs/${id}`, { method:'DELETE' });
-    if (!r.ok) { alert('删除失败：' + (await r.text())); return; }
-    refreshNow();
+$('#go').onclick=async()=>{
+  const o=formData();
+  const total=files.length; let done=0;
+  for(const f of files){
+    const fd=new FormData(); fd.append('file',f); Object.entries(o).forEach(([k,v])=>fd.append(k,v));
+    try{ const r=await fetch('/api/jobs/from-upload',{method:'POST',body:fd}); const j=await r.json();
+         if(!r.ok) throw new Error(j.detail||r.status); jobsSeen[j.id]=1;
+    }catch(e){ alert('上传失败 '+f.name+': '+e.message); }
+    done++; $('#go').textContent=`批量转换（${done}/${total}）`;
   }
-});
+  files=[]; fin.value=''; pick(); startPoll(); refresh();
+};
+$('#urlgo').onclick=async()=>{
+  const u=$('#url').value.trim(); if(!u)return;
+  $('#urlgo').disabled=true; $('#urlgo').textContent='下载中…';
+  try{
+    const o=formData();
+    const fd=new FormData(); fd.append('url',u); Object.entries(o).forEach(([k,v])=>fd.append(k,v));
+    const r=await fetch('/api/jobs/from-url',{method:'POST',body:fd}); const j=await r.json();
+    if(!r.ok) throw new Error(j.detail||r.status);
+    $('#url').value=''; jobsSeen[j.id]=1; startPoll(); refresh();
+  }catch(e){ alert('URL 上传失败: '+e.message); }
+  $('#urlgo').disabled=false; $('#urlgo').textContent='从 URL 上传';
+};
 
-startPoll();
+/* ---------- polling ---------- */
+function startPoll(){ if(polling)return; polling=true;
+  const t=setInterval(async()=>{
+    try{ const list=await(await fetch('/api/jobs')).json(); renderJobs(list);
+         const active=list.filter(x=>x.status==='queued'||x.status==='running');
+         if(!active.length){ clearInterval(t); polling=false; }
+         const arts=await(await fetch('/api/artifacts')).json(); renderArts(arts.items||[]);
+    }catch(e){}
+  },1500);
+}
+async function refresh(){ try{ const list=await(await fetch('/api/jobs')).json(); renderJobs(list);
+  const arts=await(await fetch('/api/artifacts')).json(); renderArts(arts.items||[]); }catch(e){} }
+
+/* ---------- artifacts ---------- */
+function renderArts(items){
+  const box=$('#arts'); $('#dlall').style.display=items.length?'':'none';
+  if(!items.length){ box.innerHTML='<div class="empty">暂无已完成产物</div>'; return; }
+  box.innerHTML=`<table><thead><tr><th>插件</th><th>版本</th><th>架构</th><th>大小</th><th>时间</th><th></th></tr></thead><tbody>`+
+    items.map(a=>`<tr>
+      <td><b>${esc((a.plugin&&a.plugin.name)||a.filename)}</b>${a.signed?'<span class="tag acc" style="margin-left:6px">自签</span>':''}
+          <div class="meta">${esc((a.plugin&&a.plugin.author)||'')}</div></td>
+      <td class="mono">${esc((a.plugin&&a.plugin.version)||'-')}</td>
+      <td>${esc(archTxt(a.archs))}</td>
+      <td>${fmtBytes(a.size)}</td>
+      <td class="meta">${fmtTime(a.created)}</td>
+      <td class="right"><a class="btn sm" href="/api/jobs/${a.job_id}/download">下载</a></td>
+    </tr>`).join('')+`</tbody></table>`;
+}
+
+/* ---------- jobs ---------- */
+function renderJobs(list){
+  const box=$('#jobs');
+  box.innerHTML=list.length? list.map(jobCard).join(''):'<div class="empty">暂无任务</div>';
+  $('#clear-failed').disabled=!list.some(x=>x.status==='failed'||x.status==='error');
+}
+function jobCard(j){
+  const st=j.status; const pct=j.progress??0;
+  const tag= st==='done'?'<span class="tag ok">完成</span>'
+            : st==='failed'||st==='error'?'<span class="tag err">失败</span>'
+            : '<span class="tag">'+esc(st)+'</span>';
+  const acts=[];
+  if(st==='done'&&j.artifact_file) acts.push(`<a class="btn sm primary" href="/api/jobs/${j.id}/download">下载</a>`);
+  if(st==='done'&&j.artifact_file) acts.push(`<a class="btn sm" href="/api/jobs/${j.id}/report" target="_blank">报告</a>`);
+  if(st==='failed'||st==='error') acts.push(`<button class="btn sm" data-act="retry" data-id="${j.id}">重试</button>`);
+  if(st==='done'||st==='failed'||st==='error') acts.push(`<button class="btn sm danger" data-act="del" data-id="${j.id}">删除</button>`);
+  const errs=(j.errors||[]).map(esc).join('\n');
+  return `<div class="jobline">
+    <div class="grow"><b>${esc(j.filename)}</b> <span class="tag">${esc(archTxt(j.archs))}</span> ${tag} ${j.signed?'<span class="tag acc">自签</span>':''}
+      ${st==='done'?`<span class="meta"> ${j.wheels} 依赖 · 自检${j.recheck?'通过':'未通过'}</span>`:''}
+      <div class="bar"><i style="width:${Math.max(0,Math.min(100,pct))}%"></i></div>
+      <div class="meta">${esc(j.phase||'')} · ${pct}%${j.created?' · '+fmtTime(j.created):''}</div>
+      ${errs?`<div class="errbox">${errs}</div>`:''}
+    </div>
+    <div class="right">${acts.join('')}</div>
+  </div>`;
+}
+
+/* ---------- management ---------- */
+$('#clear-failed').onclick=async()=>{ if(!confirm('清除所有失败/错误任务？'))return;
+  await fetch('/api/jobs/clear-failed',{method:'POST'}); refresh(); };
+$('#jobs').onclick=async ev=>{ const b=ev.target.closest('button[data-act]'); if(!b)return;
+  const id=b.dataset.id;
+  if(b.dataset.act==='retry'){ if(!confirm('按原配置重试该任务？'))return;
+    const r=await fetch(`/api/jobs/${id}/retry`,{method:'POST'});
+    if(!r.ok){alert('重试失败：'+(await r.text()));} else {startPoll(); refresh();}
+  } else if(b.dataset.act==='del'){ if(!confirm('删除该任务及其产物？'))return;
+    const r=await fetch(`/api/jobs/${id}`,{method:'DELETE'});
+    if(!r.ok){alert('删除失败：'+(await r.text()));} else {refresh();}
+  }
+};
+
+refresh(); startPoll();
 </script>
 </body>
 </html>

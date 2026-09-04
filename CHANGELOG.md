@@ -1,0 +1,29 @@
+# Changelog
+
+本项目遵循语义化版本（SemVer）。所有“更改”均以可运行的实现与验证为准。
+
+## [0.2.0] - 2026-09-04
+
+### 新增（Web v2）
+- 任务管理：单条删除 / 失败重试 / 一键清除失败任务（FR-W5）。
+- 批量上传：一次选择/拖入多个 `.difypkg`，顺序入队。
+- URL 上传：粘贴 http(s) 下载地址直接拉取打包（大小上限可配 `DIFY_OFFLINE_MAX_REMOTE_MB`，默认 200）。
+- 产物版本库：按插件（org/name/version）聚合已产离线包，可直接下载；支持“打包下载全部”(zip)。
+- 界面重构：去模板化（浅色、栅格、系统字体），无图标依赖。
+- `/api/meta` 暴露应用/引擎/目标 daemon 版本。
+
+### 引擎
+- 支持 abi3 / `py2.py3` wheel 标签；cp312 守卫：停发 cp312 轮子的依赖自动降钉。
+- sdist 后备：无 wheel 依赖（如 odfpy）自动带 sdist + 构建后端 wheel 离线构建（容器断网验证）。
+- 按目标架构（x86_64/aarch64）分别做离线闭包自检，修复单 arm64 误判。
+- 剔除源包残留 `.verification.dify.json`；产物尺寸预警。
+
+### 验证
+- 7 个官方插件（tools/agent-strategy/model）离线打包通过；多个在 plugin_daemon:0.6.10-local 容器内 `--network none` 安装验证。
+- 签名与官方 0.6.10 二进制双向交叉验证通过。
+
+## [0.1.0] - 2026-09
+
+- 离线重打包引擎与 CLI：`inspect / repack / verify / batch / keygen / sign / signverify`。
+- Web v1：上传→任务→下载；docker 容器化；启动脚本。
+- 文档体系：需求（含 Web FR-W）、技术调研与方案、验证记录、操作与验收指南。

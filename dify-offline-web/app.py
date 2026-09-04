@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Dict, Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -102,12 +102,16 @@ def _run_job(job_id: str) -> None:
         with open(jdir / "report.json", "w", encoding="utf-8") as f:
             json.dump(rep, f, ensure_ascii=False, indent=2)
         artifact = rep.get("artifact_path")
+        pl = rep.get("plugin") or {}
         job.update({
             "status": "done" if report.ok else "failed",
             "phase": "完成" if report.ok else "失败",
             "progress": 100,
             "ok": report.ok,
             "signed": rep.get("signed", False),
+            "plugin_author": pl.get("author"),
+            "plugin_name": pl.get("name"),
+            "plugin_version": pl.get("version"),
             "artifact_file": os.path.basename(artifact) if artifact else None,
             "artifact_size": rep.get("artifact_size"),
             "artifact_sha256": rep.get("artifact_sha256"),
@@ -131,6 +135,17 @@ def _run_job(job_id: str) -> None:
 @app.get("/")
 def index():
     return FileResponse(BASE / "static" / "index.html")
+
+
+@app.get("/api/meta")
+def meta():
+    return {
+        "app": "dify-offline-repack",
+        "app_version": "0.2.0",
+        "engine_version": getattr(repack_engine, "__version__", "0.1.0") if hasattr(repack_engine, "__version__") else "0.1.0",
+        "target_daemon": "langgenius/dify-plugin-daemon:0.6.10-local (python 3.12 / uv)",
+        "workers": int(os.environ.get("DIFY_OFFLINE_WORKERS", "2")),
+    }
 
 
 @app.post("/api/jobs")
@@ -309,6 +324,140 @@ def clear_failed():
             STATUS_LIVE.pop(p.name, None)
             removed.append(p.name)
     return {"removed": removed}
+
+
+# ------------------------------------------------------------------ url upload / artifacts / download-all
+
+def _enqueue_upload(job_id: str, raw: bytes, filename: str, arch: str,
+                    index_url: str, python: str, sign: bool) -> dict:
+    jdir = _job_path(job_id)
+    jdir.mkdir(parents=True, exist_ok=True)
+    with open(jdir / "upload.difypkg", "wb") as f:
+        f.write(raw)
+    archs = {"both": list(DEFAULT_ARCHS), "x86_64": ["x86_64"], "aarch64": ["aarch64"]}.get(arch)
+    if not archs:
+        raise HTTPException(400, f"unknown arch: {arch}")
+    job = {"id": job_id, "filename": filename, "archs": archs, "index_url": index_url,
+           "python": python, "sign": bool(sign), "status": "queued", "phase": "排队中",
+           "progress": 0, "created": time.time(), "errors": []}
+    _write_job(job)
+    executor.submit(_run_job, job_id)
+    return {"id": job_id}
+
+
+@app.post("/api/jobs/from-url")
+def create_job_from_url(url: str = Form(...), arch: str = Form("both"),
+                        index_url: str = Form("https://pypi.org/simple"),
+                        python: str = Form("3.12"), sign: str = Form("false")):
+    """Fetch a .difypkg from an http(s) URL, then enqueue a repack job.
+
+    Runs as a sync endpoint (threadpool) so a slow remote never blocks the event loop.
+    """
+    import urllib.parse
+    import urllib.request
+    if not url.lower().startswith(("http://", "https://")):
+        raise HTTPException(400, "url must be http(s)")
+    cap = int(os.environ.get("DIFY_OFFLINE_MAX_REMOTE_MB", "200")) * 1024 * 1024
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "dify-offline-repack/0.2"})
+        with urllib.request.urlopen(req, timeout=120) as r:
+            chunk = r.read(cap + 1)
+            if len(chunk) > cap:
+                raise HTTPException(413, f"remote package exceeds {cap} bytes")
+            name = os.path.basename(urllib.parse.urlparse(url).path) or "remote.difypkg"
+            if not name.lower().endswith(".difypkg"):
+                name += ".difypkg"
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"failed to fetch url: {e}") from e
+    if not chunk[:2] == b"PK":
+        raise HTTPException(400, "url does not point to a valid .difypkg (zip)")
+    job_id = uuid.uuid4().hex[:12]
+    return _enqueue_upload(job_id, chunk, name, arch, index_url, python,
+                           sign.lower() in ("true", "1", "yes"))
+
+
+@app.post("/api/jobs/from-upload")
+def create_job_upload(file: UploadFile = File(...), arch: str = Form("both"),
+                      index_url: str = Form("https://pypi.org/simple"),
+                      python: str = Form("3.12"), sign: str = Form("false")):
+    job_id = uuid.uuid4().hex[:12]
+    raw = file.file.read()
+    if not file.filename:
+        raise HTTPException(400, "empty filename")
+    return _enqueue_upload(job_id, raw, file.filename, arch, index_url, python,
+                           sign.lower() in ("true", "1", "yes"))
+
+
+def _job_plugin_identity(j: dict):
+    if j.get("plugin_author") and j.get("plugin_name") and j.get("plugin_version"):
+        return {"author": j["plugin_author"], "name": j["plugin_name"], "version": j["plugin_version"]}
+    rp = _job_path(j["id"]) / "report.json"
+    if rp.exists():
+        try:
+            rep = json.load(open(rp, encoding="utf-8"))
+            pl = rep.get("plugin") or {}
+            return {"author": pl.get("author"), "name": pl.get("name"), "version": pl.get("version")}
+        except Exception:
+            return {}
+    return {}
+
+
+@app.get("/api/artifacts")
+def artifacts():
+    """Version-controlled index of produced offline packages (newest job per plugin/version)."""
+    rows = []
+    for p in JOBS.iterdir():
+        jf = p / "job.json"
+        if not jf.exists():
+            continue
+        j = _read_job(p.name)
+        if j is None or j.get("status") != "done" or not j.get("artifact_file"):
+            continue
+        art = p / "out" / j["artifact_file"]
+        if not art.exists():
+            continue
+        ident = _job_plugin_identity(j)
+        rows.append({
+            "job_id": j["id"], "filename": j.get("filename"),
+            "plugin": ident, "signed": j.get("signed", False),
+            "artifact_file": j["artifact_file"], "size": os.path.getsize(art),
+            "sha256": j.get("artifact_sha256"), "archs": j.get("archs"),
+            "created": j.get("created"),
+        })
+    seen = {}
+    for row in rows:
+        a, n, v = (row["plugin"].get("author"), row["plugin"].get("name"), row["plugin"].get("version"))
+        if a and n and v:
+            key = (a, n, v)
+            if key not in seen:
+                seen[key] = row
+    items = sorted(seen.values(), key=lambda r: r.get("created") or 0, reverse=True)
+    return {"total": len(items), "items": items}
+
+
+@app.get("/api/download-all")
+def download_all(background: BackgroundTasks):
+    """One-click download: zip of every current done artifact."""
+    arts = []
+    for p in JOBS.iterdir():
+        j = _read_job(p.name) if (p / "job.json").exists() else None
+        if j is None or j.get("status") != "done" or not j.get("artifact_file"):
+            continue
+        f = _job_path(p.name) / "out" / j["artifact_file"]
+        if f.exists():
+            arts.append(f)
+    if not arts:
+        raise HTTPException(404, "no finished artifacts yet")
+    import zipfile
+    os.makedirs(DATA / "tmp", exist_ok=True)
+    tmp = DATA / "tmp" / f"offline-packages-{time.strftime('%Y%m%d-%H%M%S')}.zip"
+    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as z:
+        for f in arts:
+            z.write(f, f.name)
+    background.add_task(os.remove, tmp)
+    return FileResponse(tmp, filename=tmp.name, media_type="application/zip")
 
 
 app.mount("/static", StaticFiles(directory=str(BASE / "static")), name="static")
