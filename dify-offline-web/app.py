@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Dict, Optional
 
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Body, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -141,7 +141,7 @@ def index():
 def meta():
     return {
         "app": "dify-offline-repack",
-        "app_version": "0.2.1",
+        "app_version": "0.2.2",
         "engine_version": getattr(repack_engine, "__version__", "0.1.0") if hasattr(repack_engine, "__version__") else "0.1.0",
         "target_daemon": "langgenius/dify-plugin-daemon:0.6.10-local (python 3.12 / uv)",
         "workers": int(os.environ.get("DIFY_OFFLINE_WORKERS", "2")),
@@ -435,6 +435,35 @@ def artifacts():
                 seen[key] = row
     items = sorted(seen.values(), key=lambda r: r.get("created") or 0, reverse=True)
     return {"total": len(items), "items": items}
+
+
+@app.post("/api/download-selected")
+def download_selected(payload: dict = Body(...), background: BackgroundTasks = None):
+    """Zip the artifacts of the chosen job ids (multi-select download)."""
+    ids = payload.get("job_ids") or []
+    if not isinstance(ids, list):
+        raise HTTPException(400, "job_ids must be a list")
+    arts = []
+    for i in ids:
+        if not _ID_RE.match(str(i)):
+            continue
+        j = _read_job(str(i))
+        if j is None or j.get("status") != "done" or not j.get("artifact_file"):
+            continue
+        f = _job_path(str(i)) / "out" / j["artifact_file"]
+        if f.exists():
+            arts.append((str(i), f))
+    if not arts:
+        raise HTTPException(404, "no valid finished artifacts for the selected jobs")
+    import zipfile
+    os.makedirs(DATA / "tmp", exist_ok=True)
+    tmp = DATA / "tmp" / f"selected-{time.strftime('%Y%m%d-%H%M%S')}.zip"
+    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as z:
+        for jid, f in arts:
+            z.write(f, f"{jid}-{f.name}")
+    if background is not None:
+        background.add_task(os.remove, tmp)
+    return FileResponse(tmp, filename=tmp.name, media_type="application/zip")
 
 
 @app.get("/api/download-all")

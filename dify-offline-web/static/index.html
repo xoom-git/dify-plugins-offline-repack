@@ -72,6 +72,7 @@
   .stat .k{color:var(--mut);font-size:11px}
   .stat .v{font-size:17px;font-weight:700;margin-top:2px}
   .stat .v.ok{color:var(--ok)} .stat .v.busy{color:var(--acc)} .stat .v.bad{color:var(--err)}
+  tr.selrow td{background:#f3f7ff}
   .kv{margin:0;font-size:12px;color:var(--mut)}
   .kv b{color:#3b4657}
   .notes ol{margin:6px 0 0;padding-left:18px;font-size:12px;line-height:1.7}
@@ -175,6 +176,8 @@ NGINX_CLIENT_MAX_BODY_SIZE=500M</pre>
         <div class="card-h">
           <h2>产物版本库</h2>
           <span class="grow"></span>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" id="selall"> 全选</label>
+          <button class="btn sm primary" id="dlsel" disabled>下载所选</button>
           <a class="btn sm" id="dlall" href="/api/download-all" style="display:none">下载全部</a>
         </div>
         <div id="arts"><div class="empty">暂无已完成产物</div></div>
@@ -245,18 +248,52 @@ async function refresh(){
 }
 
 /* artifacts (right column) */
+let selSet = new Set();
 function renderArts(items){
-  const box=$('#arts'); $('#dlall').style.display=items.length?'':'none';
+  const box=$('#arts');
+  const live = new Set(items.map(a=>a.job_id));
+  for(const id of [...selSet]){ if(!live.has(id)) selSet.delete(id); }
+  const hasAny = items.length>0;
+  $('#dlall').style.display=hasAny?'':'none';
+  $('#dlsel').disabled = selSet.size===0;
+  $('#dlsel').textContent = selSet.size? `下载所选（${selSet.size}）`:'下载所选';
+  $('#selall').checked = hasAny && selSet.size===items.length;
+  $('#selall').indeterminate = selSet.size>0 && selSet.size<items.length;
   if(!items.length){ box.innerHTML='<div class="empty">暂无已完成产物</div>'; return; }
-  box.innerHTML=`<table><thead><tr><th>插件 / 版本</th><th>架构</th><th></th></tr></thead><tbody>`+
+  box.innerHTML=`<table><thead><tr><th style="width:28px"></th><th>插件 / 版本</th><th>架构</th><th></th></tr></thead><tbody>`+
     items.map(a=>{ const p=a.plugin||{};
-      return `<tr><td><b>${esc(p.name||a.filename)}</b> <span class="mono">${esc(p.version||'')}</span>
-              ${a.signed?'<span class="tag acc">自签</span>':''}
-              <div class="meta">${esc(p.author||'')} · ${fmtBytes(a.size)} · ${fmtTime(a.created)}</div></td>
+      return `<tr class="${selSet.has(a.job_id)?'selrow':''}">
+            <td><input type="checkbox" class="rowsel" data-id="${a.job_id}" ${selSet.has(a.job_id)?'checked':''}></td>
+            <td><b>${esc(p.name||a.filename)}</b> <span class="mono">${esc(p.version||'')}</span>
+                ${a.signed?'<span class="tag acc">自签</span>':''}
+                <div class="meta">${esc(p.author||'')} · ${fmtBytes(a.size)} · ${fmtTime(a.created)}</div></td>
             <td class="meta">${esc(archTxt(a.archs))}</td>
             <td><a class="btn sm" href="/api/jobs/${a.job_id}/download">下载</a></td></tr>`; }).join('')+
     `</tbody></table>`;
 }
+function updateSelUI(){
+  const rows=[...document.querySelectorAll('.rowsel')];
+  const n=rows.length, ck=rows.filter(r=>r.checked).length;
+  const sa=$('#selall'); sa.checked = n>0 && ck===n; sa.indeterminate = ck>0 && ck<n;
+  const dl=$('#dlsel'); dl.disabled = ck===0; dl.textContent = ck?`下载所选（${ck}）`:'下载所选';
+}
+function triggerBlobDownload(url, filename){
+  fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({job_ids:[...selSet]})}).then(r=>{ if(!r.ok) throw new Error(r.status);
+    return r.blob(); }).then(b=>{ const u=URL.createObjectURL(b); const a=document.createElement('a');
+    a.href=u; a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(u),5000);
+  }).catch(e=>alert('下载失败: '+e.message));
+}
+$('#selall').onchange=e=>{
+  document.querySelectorAll('.rowsel').forEach(c=>{ c.checked=e.target.checked;
+    if(e.target.checked) selSet.add(c.dataset.id); else selSet.delete(c.dataset.id); });
+  updateSelUI();
+};
+$('#dlsel').onclick=()=>{ if(!selSet.size) return; triggerBlobDownload('/api/download-selected','selected-'+Date.now()+'.zip'); };
+$('#arts').onchange=e=>{ const c=e.target.closest('.rowsel'); if(!c)return;
+  if(c.checked) selSet.add(c.dataset.id); else selSet.delete(c.dataset.id);
+  updateSelUI();
+};
 
 /* job list (left bottom) */
 function renderJobs(list){
