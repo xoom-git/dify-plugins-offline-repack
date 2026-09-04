@@ -6,148 +6,204 @@
 <title>Dify 插件离线重打包</title>
 <style>
   :root{
-    --bg:#f6f7f9; --panel:#ffffff; --line:#e2e6ec; --line2:#d7dce4;
-    --fg:#1c2430; --mut:#66707d; --acc:#2563eb; --acc2:#1d4ed8;
-    --ok:#15803d; --err:#b91c1c; --warn:#b45309; --chip:#eef1f6;
+    --bg:#f4f6f9; --panel:#fff; --line:#e3e7ee; --line2:#d5dae3;
+    --fg:#1c2430; --mut:#6a7483; --acc:#2563eb; --acc2:#1e4fc4;
+    --ok:#16794c; --err:#b42318; --chip:#eef1f6; --chip-acc:#eaf1ff;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--fg);
        font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",Roboto,sans-serif}
   a{color:var(--acc);text-decoration:none}
-  .top{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
-  .top-in{max-width:1080px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:14px}
-  .brand{font-size:17px;font-weight:700;letter-spacing:.2px}
-  .brand small{color:var(--mut);font-weight:500;margin-left:8px;font-size:12px}
-  .ver{margin-left:auto;color:var(--mut);font-size:12px}
-  .wrap{max-width:1080px;margin:0 auto;padding:22px 20px 90px}
-  h2{font-size:15px;margin:26px 0 10px;color:#3b4657}
+  .top{background:#fff;border-bottom:1px solid var(--line)}
+  .top-in{max-width:1180px;margin:0 auto;padding:13px 22px;display:flex;align-items:baseline;gap:12px}
+  .brand{font-size:17px;font-weight:700}
+  .brand small{color:var(--mut);font-weight:500;font-size:12px;margin-left:8px}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 22px 70px}
+  h2{font-size:14px;margin:0;color:#303a4b}
+  h2 .sub{color:var(--mut);font-weight:400;font-size:12px;margin-left:6px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:10px}
-  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);background:#fff;
-       color:#2a3342;padding:7px 13px;border-radius:7px;font-size:13px;cursor:pointer}
+  .card-h{padding:11px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+  .card-b{padding:14px}
+  .btn{display:inline-flex;align-items:center;border:1px solid var(--line2);background:#fff;color:#2b3444;
+       padding:6px 12px;border-radius:7px;font-size:13px;cursor:pointer}
   .btn:hover{background:#f2f4f8}
   .btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
   .btn.primary:hover{background:var(--acc2)}
-  .btn.danger:hover{background:#fdeaea;border-color:#eeb8b8;color:var(--err)}
-  .btn:disabled{opacity:.5;cursor:not-allowed}
-  .btn.sm{padding:3px 9px;font-size:12px}
-  .drop{border:1.5px dashed var(--line2);border-radius:10px;padding:34px 18px;text-align:center;
-        background:#fbfcfe;cursor:pointer;color:var(--mut)}
-  .drop.drag{border-color:var(--acc);background:#eef4ff}
-  .drop b{color:var(--fg);font-size:15px;display:block;margin-bottom:4px}
-  .files{margin-top:12px;display:flex;flex-wrap:wrap;gap:6px}
-  .fchip{background:var(--chip);border:1px solid var(--line);padding:4px 10px;border-radius:999px;font-size:12px;color:#3a4555}
-  .opts{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0;align-items:center}
-  label{font-size:13px;color:var(--mut)}
-  select,input[type=text]{background:#fff;border:1px solid var(--line2);border-radius:7px;padding:7px 9px;font-size:13px;color:var(--fg)}
-  input[type=checkbox]{accent-color:var(--acc)}
-  .urlrow{display:flex;gap:8px;margin-top:12px}
+  .btn.danger:hover{background:#fdeaec;border-color:#f0c2c2;color:var(--err)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.sm{padding:2px 9px;font-size:12px;border-radius:6px}
+  .drop{border:1.5px dashed var(--line2);border-radius:9px;padding:26px 16px;text-align:center;
+        background:#fbfcfe;color:var(--mut);cursor:pointer}
+  .drop b{color:var(--fg);display:block;font-size:14px;margin-bottom:3px}
+  .drop.drag{border-color:var(--acc);background:#eef5ff}
+  .files{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .fchip{background:var(--chip);border:1px solid var(--line);padding:2px 9px;border-radius:999px;font-size:12px}
+  .urlrow{display:flex;gap:8px;margin-top:10px}
   .urlrow input[type=text]{flex:1}
-  .hint{color:var(--mut);font-size:12px;margin-top:10px}
+  .opts{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:12px}
+  label{font-size:13px;color:var(--mut)}
+  select,input[type=text]{background:#fff;border:1px solid var(--line2);border-radius:7px;padding:6px 9px;font-size:13px}
+  input[type=checkbox]{accent-color:var(--acc)}
+  .go{display:flex;justify-content:flex-end;margin-top:12px;gap:8px}
+  .hint{color:var(--mut);font-size:12px;margin-top:10px;line-height:1.6}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 356px;gap:18px;margin-top:18px;align-items:start}
+  .col{display:flex;flex-direction:column;gap:18px;min-width:0}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  th{text-align:left;color:var(--mut);font-weight:600;padding:9px 10px;border-bottom:1px solid var(--line2);font-size:12px}
-  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{text-align:left;color:var(--mut);font-weight:600;font-size:12px;padding:7px 10px;border-bottom:1px solid var(--line2)}
+  td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
   tr:last-child td{border-bottom:none}
   .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
-  .tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:11px;background:var(--chip);color:#4a5568;border:1px solid var(--line)}
-  .tag.ok{color:var(--ok);background:#ecfdf3;border-color:#b7ebc5}
-  .tag.err{color:var(--err);background:#fef2f2;border-color:#f6caca}
-  .tag.acc{color:var(--acc2);background:#eff6ff;border-color:#c5dcff}
-  .jobline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 14px;border-bottom:1px solid var(--line)}
-  .jobline:last-child{border-bottom:none}
-  .grow{flex:1;min-width:240px}
-  .bar{height:6px;background:#edf0f5;border-radius:4px;overflow:hidden;margin-top:7px}
+  .tag{display:inline-block;padding:0 7px;border-radius:5px;font-size:11px;background:var(--chip);color:#4a5568;border:1px solid var(--line)}
+  .tag.ok{color:var(--ok);background:#ecfdf3;border-color:#b8e6cb}
+  .tag.err{color:var(--err);background:#fef2f2;border-color:#f3c7c7}
+  .tag.acc{color:var(--acc2);background:var(--chip-acc);border-color:#c9ddfa}
+  .job{border-bottom:1px solid var(--line);padding:11px 14px}
+  .job:last-child{border-bottom:none}
+  .job-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .job-head b{font-size:13px}
+  .grow{flex:1}
+  .bar{height:5px;background:#e9edf3;border-radius:4px;overflow:hidden;margin-top:8px}
   .bar>i{display:block;height:100%;background:var(--acc);width:0%;transition:width .4s}
   .meta{color:var(--mut);font-size:12px;margin-top:4px}
-  .errbox{color:var(--err);font-size:12px;white-space:pre-wrap;margin-top:6px;max-height:90px;overflow:auto}
-  .empty{color:var(--mut);text-align:center;padding:26px 0;font-size:13px}
-  .right{display:flex;gap:6px;align-items:center}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-  @media(max-width:880px){.grid2{grid-template-columns:1fr}}
-  .foot{color:#98a1ad;font-size:12px;text-align:center;margin-top:34px}
+  .errbox{color:var(--err);font-size:12px;white-space:pre-wrap;margin-top:6px;max-height:80px;overflow:auto}
+  .empty{color:var(--mut);text-align:center;padding:22px;font-size:13px}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .stat{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  .stat .k{color:var(--mut);font-size:11px}
+  .stat .v{font-size:17px;font-weight:700;margin-top:2px}
+  .stat .v.ok{color:var(--ok)} .stat .v.busy{color:var(--acc)} .stat .v.bad{color:var(--err)}
+  .kv{margin:0;font-size:12px;color:var(--mut)}
+  .kv b{color:#3b4657}
+  .notes ol{margin:6px 0 0;padding-left:18px;font-size:12px;line-height:1.7}
+  .notes pre{background:#f6f8fb;border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:11px;overflow:auto;margin:8px 0 0}
+  @media(max-width:1020px){.layout{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header class="top"><div class="top-in">
-  <div class="brand">Dify 插件离线重打包<span class="ver" id="appver"></span></div>
-  <div class="ver">把官方插件重打包为可离线安装的 .difypkg</div>
+  <span class="brand">Dify 插件离线重打包<small>官方插件 → 可离线安装的 .difypkg</small></span>
+  <span class="grow"></span>
+  <span id="appver" style="color:var(--mut);font-size:12px"></span>
 </div></header>
 
 <main class="wrap">
+  <div class="layout">
 
-  <h2>新建转换任务</h2>
-  <div class="card" style="padding:16px">
-    <div class="drop" id="drop">
-      <b>选择或拖入一个或多个 .difypkg</b>
-      支持官方市场下载包 / 本地文件 / 直接粘贴下载地址
-    </div>
-    <input type="file" id="file" accept=".difypkg,.zip" multiple hidden>
-    <div class="files" id="picked"></div>
+    <!-- left column -->
+    <div class="col">
 
-    <div class="urlrow">
-      <input type="text" id="url" placeholder="或粘贴插件 .difypkg 下载地址（如 https://marketplace.dify.ai/.../download）">
-      <button class="btn" id="urlgo">从 URL 上传</button>
+      <section class="card" id="create">
+        <div class="card-h"><h2>新建转换任务</h2></div>
+        <div class="card-b">
+          <div class="drop" id="drop">
+            <b>选择或拖入一个或多个 .difypkg</b>
+            也支持粘贴下载地址后从 URL 拉取
+          </div>
+          <input type="file" id="file" accept=".difypkg,.zip" multiple hidden>
+          <div class="files" id="picked"></div>
+
+          <div class="urlrow">
+            <input type="text" id="url" placeholder="插件 .difypkg 下载地址（如 https://marketplace.dify.ai/.../download）">
+            <button class="btn" id="urlgo">URL 上传</button>
+          </div>
+
+          <div class="opts">
+            <label>目标架构
+              <select id="arch">
+                <option value="both">amd64 + arm64（推荐）</option>
+                <option value="x86_64">仅 amd64</option>
+                <option value="aarch64">仅 arm64</option>
+              </select>
+            </label>
+            <label>PyPI 源
+              <input type="text" id="index" value="https://pypi.org/simple" size="24">
+            </label>
+            <label><input type="checkbox" id="sign"> 组织私钥自签</label>
+          </div>
+          <div class="go">
+            <button class="btn primary" id="go" disabled>批量转换（0 个文件）</button>
+          </div>
+          <div class="hint">流程：uv 精确锁定（cp312，停发轮子的依赖自动降钉/转 sdist）→ 抓取双架构 wheel（sha256 校验）→ 注入 wheels/ 与离线依赖配置 → 按架构离线闭包自检。</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-h">
+          <h2>任务列表</h2>
+          <span class="sub" id="qcount"></span>
+          <span class="grow"></span>
+          <button class="btn sm danger" id="clear-failed" disabled>清除失败任务</button>
+        </div>
+        <div id="jobs"><div class="empty">暂无任务</div></div>
+      </section>
+
     </div>
 
-    <div class="opts">
-      <label>目标架构
-        <select id="arch">
-          <option value="both">amd64 + arm64（推荐）</option>
-          <option value="x86_64">仅 amd64</option>
-          <option value="aarch64">仅 arm64</option>
-        </select>
-      </label>
-      <label>PyPI 源
-        <input type="text" id="index" value="https://pypi.org/simple" size="26">
-      </label>
-      <label><input type="checkbox" id="sign" style="vertical-align:-1px"> 组织私钥自签（安全路径）</label>
-      <span style="flex:1"></span>
-      <button class="btn primary" id="go" disabled>批量转换（0 个文件）</button>
+    <!-- right column -->
+    <div class="col">
+
+      <section class="card">
+        <div class="card-h"><h2>系统运行状态</h2></div>
+        <div class="card-b">
+          <div class="stat-grid" id="stats"></div>
+          <dl class="kv" style="margin-top:10px">
+            <div>引擎版本：<b id="m-engine">-</b></div>
+            <div>应用版本：<b id="m-app">-</b></div>
+            <div>并发工作数：<b id="m-workers">-</b></div>
+            <div>目标运行环境：<b id="m-target">-</b></div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-h"><h2>目标端部署说明</h2></div>
+        <div class="card-b notes">
+          把生成的离线包拷入内网 Dify，在部署目录 <span class="mono">.env</span> 增加：
+          <pre>FORCE_VERIFYING_SIGNATURE=false   # 或用第三方公钥验签（安全路径）
+PLUGIN_MAX_PACKAGE_SIZE=524288000
+NGINX_CLIENT_MAX_BODY_SIZE=500M</pre>
+          <ol>
+            <li><span class="mono">docker compose up -d plugin_daemon nginx</span></li>
+            <li>Dify → 插件 → 本地文件安装 → 上传离线包</li>
+            <li>安装全程零外网（依赖自包内 wheels/ 安装）</li>
+          </ol>
+          <div class="hint">安全路径（推荐）：页面勾选“组织私钥自签”，服务端配置 <span class="mono">DIFY_OFFLINE_PRIVATE_KEY</span>，目标端开启 <span class="mono">THIRD_PARTY_SIGNATURE_VERIFICATION_ENABLED=true</span> 并挂载公钥，即可保持 <span class="mono">FORCE_VERIFYING_SIGNATURE=true</span>。详见 docs/05。</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-h">
+          <h2>产物版本库</h2>
+          <span class="grow"></span>
+          <a class="btn sm" id="dlall" href="/api/download-all" style="display:none">下载全部</a>
+        </div>
+        <div id="arts"><div class="empty">暂无已完成产物</div></div>
+      </section>
+
     </div>
-    <div class="hint">流程：uv 精确锁定（cp312）→ 抓取双架构 wheel（含 abi3/sdist 后备，sha256 校验）→ 注入 wheels/ 与离线配置 → 离线闭包自检。目标端 Dify 需放行尺寸并选择验签策略（见页脚说明与 docs/05）。</div>
   </div>
-
-  <div class="grid2">
-    <section>
-      <div class="toolbar">
-        <h2 style="margin:0">产物版本库</h2>
-        <span style="flex:1"></span>
-        <a class="btn sm" id="dlall" href="/api/download-all">打包下载全部</a>
-      </div>
-      <div class="card" style="margin-top:8px"><div id="arts"><div class="empty">暂无已完成产物</div></div></div>
-    </section>
-
-    <section>
-      <div class="toolbar">
-        <h2 style="margin:0">任务队列</h2>
-        <span style="flex:1"></span>
-        <button class="btn sm danger" id="clear-failed" disabled>清除失败任务</button>
-      </div>
-      <div class="card" style="margin-top:8px"><div id="jobs"><div class="empty">暂无任务</div></div></div>
-    </section>
-  </div>
-
-  <div class="foot">目标端：FORCE_VERIFYING_SIGNATURE=false（快速）或第三方公钥验签（安全）· PLUGIN_MAX_PACKAGE_SIZE / NGINX_CLIENT_MAX_BODY_SIZE 需放行 · 插件在本机与插件市场下载说明见 docs/</div>
 </main>
 
 <script>
 const $=s=>document.querySelector(s);
-let polling=false, files=[], jobsSeen={};
-
+let polling=false, files=[];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const fmtBytes=n=>{ if(n==null)return''; if(n<1048576)return(n/1024).toFixed(0)+' KB'; return(n/1048576).toFixed(1)+' MB'; };
+const fmtBytes=n=>{ if(n==null)return''; return n<1048576?(n/1024).toFixed(0)+' KB':(n/1048576).toFixed(1)+' MB'; };
 const fmtTime=t=> t? new Date(t*1000).toLocaleString('zh-CN',{hour12:false}) :'';
 const archTxt=a=>(a||[]).join(' + ');
 
-/* ---------- meta ---------- */
-fetch('/api/meta').then(r=>r.json()).then(m=>{ $('#appver').textContent='v'+m.app_version+' · 引擎 '+m.engine_version; }).catch(()=>{});
+fetch('/api/meta').then(r=>r.json()).then(m=>{
+  $('#appver').textContent='v'+m.app_version+' · '+m.engine_version;
+  $('#m-app').textContent=m.app_version; $('#m-engine').textContent=m.engine_version;
+  $('#m-workers').textContent=m.workers+'（可配 DIFY_OFFLINE_WORKERS）'; $('#m-target').textContent=m.target_daemon;
+}).catch(()=>{});
 
-/* ---------- file picker ---------- */
+/* upload */
 const drop=$('#drop'), fin=$('#file');
 drop.onclick=()=>fin.click();
 drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag');};
 drop.ondragleave=()=>drop.classList.remove('drag');
-drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag'); if(e.dataTransfer.files.length){fin.files=e.dataTransfer.files;} pick();};
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag'); if(e.dataTransfer.files.length)fin.files=e.dataTransfer.files; pick();};
 fin.onchange=pick;
 function pick(){
   files=Array.from(fin.files||[]);
@@ -155,72 +211,62 @@ function pick(){
   $('#go').disabled=!files.length;
   $('#go').textContent=files.length?`批量转换（${files.length} 个文件）`:'批量转换（0 个文件）';
 }
-
-/* ---------- submit ---------- */
-const formData=()=>({arch:$('#arch').value, index_url:$('#index').value.trim()||'https://pypi.org/simple', sign:$('#sign').checked?'true':'false'});
-
+const fdOpts=()=>new URLSearchParams({arch:$('#arch').value,index_url:$('#index').value.trim()||'https://pypi.org/simple',sign:$('#sign').checked?'true':'false'});
 $('#go').onclick=async()=>{
-  const o=formData();
   const total=files.length; let done=0;
   for(const f of files){
-    const fd=new FormData(); fd.append('file',f); Object.entries(o).forEach(([k,v])=>fd.append(k,v));
-    try{ const r=await fetch('/api/jobs/from-upload',{method:'POST',body:fd}); const j=await r.json();
-         if(!r.ok) throw new Error(j.detail||r.status); jobsSeen[j.id]=1;
+    const fd=new FormData(); fd.append('file',f); fdOpts().forEach((v,k)=>fd.append(k,v));
+    try{ const r=await fetch('/api/jobs/from-upload',{method:'POST',body:fd});
+         if(!r.ok){const j=await r.json().catch(()=>({})); throw new Error(j.detail||r.status);}
     }catch(e){ alert('上传失败 '+f.name+': '+e.message); }
     done++; $('#go').textContent=`批量转换（${done}/${total}）`;
   }
-  files=[]; fin.value=''; pick(); startPoll(); refresh();
+  files=[]; fin.value=''; pick(); startPoll();
 };
 $('#urlgo').onclick=async()=>{
   const u=$('#url').value.trim(); if(!u)return;
   $('#urlgo').disabled=true; $('#urlgo').textContent='下载中…';
   try{
-    const o=formData();
-    const fd=new FormData(); fd.append('url',u); Object.entries(o).forEach(([k,v])=>fd.append(k,v));
-    const r=await fetch('/api/jobs/from-url',{method:'POST',body:fd}); const j=await r.json();
-    if(!r.ok) throw new Error(j.detail||r.status);
-    $('#url').value=''; jobsSeen[j.id]=1; startPoll(); refresh();
+    const fd=new URLSearchParams({url:u}); fdOpts().forEach((v,k)=>fd.append(k,v));
+    const r=await fetch('/api/jobs/from-url',{method:'POST',body:fd});
+    if(!r.ok){const j=await r.json().catch(()=>({})); throw new Error(j.detail||r.status);}
+    $('#url').value=''; startPoll();
   }catch(e){ alert('URL 上传失败: '+e.message); }
-  $('#urlgo').disabled=false; $('#urlgo').textContent='从 URL 上传';
+  $('#urlgo').disabled=false; $('#urlgo').textContent='URL 上传';
 };
 
-/* ---------- polling ---------- */
+/* poll */
 function startPoll(){ if(polling)return; polling=true;
-  const t=setInterval(async()=>{
-    try{ const list=await(await fetch('/api/jobs')).json(); renderJobs(list);
-         const active=list.filter(x=>x.status==='queued'||x.status==='running');
-         if(!active.length){ clearInterval(t); polling=false; }
-         const arts=await(await fetch('/api/artifacts')).json(); renderArts(arts.items||[]);
-    }catch(e){}
-  },1500);
+  const t=setInterval(async()=>{ try{ await refresh(); }catch(e){} },1600);
 }
-async function refresh(){ try{ const list=await(await fetch('/api/jobs')).json(); renderJobs(list);
-  const arts=await(await fetch('/api/artifacts')).json(); renderArts(arts.items||[]); }catch(e){} }
+async function refresh(){
+  const [jlist,arts]=await Promise.all([fetch('/api/jobs').then(r=>r.json()), fetch('/api/artifacts').then(r=>r.json())]);
+  renderJobs(jlist); renderArts(arts.items||[]); renderStats(jlist);
+}
 
-/* ---------- artifacts ---------- */
+/* artifacts (right column) */
 function renderArts(items){
   const box=$('#arts'); $('#dlall').style.display=items.length?'':'none';
   if(!items.length){ box.innerHTML='<div class="empty">暂无已完成产物</div>'; return; }
-  box.innerHTML=`<table><thead><tr><th>插件</th><th>版本</th><th>架构</th><th>大小</th><th>时间</th><th></th></tr></thead><tbody>`+
-    items.map(a=>`<tr>
-      <td><b>${esc((a.plugin&&a.plugin.name)||a.filename)}</b>${a.signed?'<span class="tag acc" style="margin-left:6px">自签</span>':''}
-          <div class="meta">${esc((a.plugin&&a.plugin.author)||'')}</div></td>
-      <td class="mono">${esc((a.plugin&&a.plugin.version)||'-')}</td>
-      <td>${esc(archTxt(a.archs))}</td>
-      <td>${fmtBytes(a.size)}</td>
-      <td class="meta">${fmtTime(a.created)}</td>
-      <td class="right"><a class="btn sm" href="/api/jobs/${a.job_id}/download">下载</a></td>
-    </tr>`).join('')+`</tbody></table>`;
+  box.innerHTML=`<table><thead><tr><th>插件 / 版本</th><th>架构</th><th></th></tr></thead><tbody>`+
+    items.map(a=>{ const p=a.plugin||{};
+      return `<tr><td><b>${esc(p.name||a.filename)}</b> <span class="mono">${esc(p.version||'')}</span>
+              ${a.signed?'<span class="tag acc">自签</span>':''}
+              <div class="meta">${esc(p.author||'')} · ${fmtBytes(a.size)} · ${fmtTime(a.created)}</div></td>
+            <td class="meta">${esc(archTxt(a.archs))}</td>
+            <td><a class="btn sm" href="/api/jobs/${a.job_id}/download">下载</a></td></tr>`; }).join('')+
+    `</tbody></table>`;
 }
 
-/* ---------- jobs ---------- */
+/* job list (left bottom) */
 function renderJobs(list){
   const box=$('#jobs');
-  box.innerHTML=list.length? list.map(jobCard).join(''):'<div class="empty">暂无任务</div>';
+  $('#qcount').textContent=`共 ${list.length} 条`;
+  box.innerHTML=list.length?list.map(jobCard).join(''):'<div class="empty">暂无任务，请从左侧新建</div>';
   $('#clear-failed').disabled=!list.some(x=>x.status==='failed'||x.status==='error');
 }
 function jobCard(j){
-  const st=j.status; const pct=j.progress??0;
+  const st=j.status, pct=j.progress??0;
   const tag= st==='done'?'<span class="tag ok">完成</span>'
             : st==='failed'||st==='error'?'<span class="tag err">失败</span>'
             : '<span class="tag">'+esc(st)+'</span>';
@@ -228,30 +274,38 @@ function jobCard(j){
   if(st==='done'&&j.artifact_file) acts.push(`<a class="btn sm primary" href="/api/jobs/${j.id}/download">下载</a>`);
   if(st==='done'&&j.artifact_file) acts.push(`<a class="btn sm" href="/api/jobs/${j.id}/report" target="_blank">报告</a>`);
   if(st==='failed'||st==='error') acts.push(`<button class="btn sm" data-act="retry" data-id="${j.id}">重试</button>`);
-  if(st==='done'||st==='failed'||st==='error') acts.push(`<button class="btn sm danger" data-act="del" data-id="${j.id}">删除</button>`);
+  if(st!=='queued'&&st!=='running') acts.push(`<button class="btn sm danger" data-act="del" data-id="${j.id}">删除</button>`);
   const errs=(j.errors||[]).map(esc).join('\n');
-  return `<div class="jobline">
-    <div class="grow"><b>${esc(j.filename)}</b> <span class="tag">${esc(archTxt(j.archs))}</span> ${tag} ${j.signed?'<span class="tag acc">自签</span>':''}
-      ${st==='done'?`<span class="meta"> ${j.wheels} 依赖 · 自检${j.recheck?'通过':'未通过'}</span>`:''}
-      <div class="bar"><i style="width:${Math.max(0,Math.min(100,pct))}%"></i></div>
-      <div class="meta">${esc(j.phase||'')} · ${pct}%${j.created?' · '+fmtTime(j.created):''}</div>
-      ${errs?`<div class="errbox">${errs}</div>`:''}
-    </div>
-    <div class="right">${acts.join('')}</div>
+  return `<div class="job">
+    <div class="job-head"><b>${esc(j.filename)}</b><span class="tag">${esc(archTxt(j.archs))}</span>${tag}${j.signed?'<span class="tag acc">自签</span>':''}
+      ${st==='done'?`<span class="meta">${j.wheels} 依赖 · 自检${j.recheck?'通过':'未通过'}</span>`:''}
+      <span class="grow"></span>${acts.join('')}</div>
+    <div class="bar"><i style="width:${Math.max(0,Math.min(100,pct))}%"></i></div>
+    <div class="meta">${esc(j.phase||'')} · ${pct}%${j.created?' · '+fmtTime(j.created):''}</div>
+    ${errs?`<div class="errbox">${errs}</div>`:''}
   </div>`;
 }
 
-/* ---------- management ---------- */
-$('#clear-failed').onclick=async()=>{ if(!confirm('清除所有失败/错误任务？'))return;
-  await fetch('/api/jobs/clear-failed',{method:'POST'}); refresh(); };
-$('#jobs').onclick=async ev=>{ const b=ev.target.closest('button[data-act]'); if(!b)return;
-  const id=b.dataset.id;
+/* status (right column) */
+function renderStats(list){
+  const c={run:0,done:0,failed:0};
+  list.forEach(j=>{ if(j.status==='queued'||j.status==='running')c.run++; else if(j.status==='done')c.done++; else c.failed++; });
+  $('#stats').innerHTML=
+    `<div class="stat"><div class="k">执行中</div><div class="v busy">${c.run}</div></div>`+
+    `<div class="stat"><div class="k">已完成</div><div class="v ok">${c.done}</div></div>`+
+    `<div class="stat"><div class="k">失败</div><div class="v bad">${c.failed}</div></div>`+
+    `<div class="stat"><div class="k">任务总数</div><div class="v">${list.length}</div></div>`;
+}
+
+/* manage */
+$('#clear-failed').onclick=async()=>{ if(!confirm('清除所有失败/错误任务？'))return; await fetch('/api/jobs/clear-failed',{method:'POST'}); refresh(); };
+$('#jobs').onclick=async ev=>{ const b=ev.target.closest('button[data-act]'); if(!b)return; const id=b.dataset.id;
   if(b.dataset.act==='retry'){ if(!confirm('按原配置重试该任务？'))return;
     const r=await fetch(`/api/jobs/${id}/retry`,{method:'POST'});
-    if(!r.ok){alert('重试失败：'+(await r.text()));} else {startPoll(); refresh();}
+    if(!r.ok)alert('重试失败：'+(await r.text())); else startPoll();
   } else if(b.dataset.act==='del'){ if(!confirm('删除该任务及其产物？'))return;
     const r=await fetch(`/api/jobs/${id}`,{method:'DELETE'});
-    if(!r.ok){alert('删除失败：'+(await r.text()));} else {refresh();}
+    if(!r.ok)alert('删除失败：'+(await r.text()));
   }
 };
 

@@ -141,7 +141,7 @@ def index():
 def meta():
     return {
         "app": "dify-offline-repack",
-        "app_version": "0.2.0",
+        "app_version": "0.2.1",
         "engine_version": getattr(repack_engine, "__version__", "0.1.0") if hasattr(repack_engine, "__version__") else "0.1.0",
         "target_daemon": "langgenius/dify-plugin-daemon:0.6.10-local (python 3.12 / uv)",
         "workers": int(os.environ.get("DIFY_OFFLINE_WORKERS", "2")),
