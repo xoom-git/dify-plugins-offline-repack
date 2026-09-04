@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dify 插件离线重打包</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --line:#334155; --fg:#e2e8f0; --mut:#94a3b8;
+          --acc:#38bdf8; --ok:#4ade80; --err:#f87171; --warn:#fbbf24; }
+  * { box-sizing:border-box }
+  body { margin:0; font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+         background:var(--bg); color:var(--fg); }
+  .wrap { max-width:960px; margin:0 auto; padding:24px 16px 80px; }
+  h1 { font-size:22px } h2 { font-size:16px; margin:26px 0 10px; color:var(--acc) }
+  .mut { color:var(--mut); font-size:13px }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:10px 0 }
+  #drop { border:2px dashed var(--line); border-radius:12px; padding:36px 16px; text-align:center;
+          cursor:pointer; transition:.15s; background:rgba(56,189,248,.03) }
+  #drop.over, #drop:hover { border-color:var(--acc); background:rgba(56,189,248,.08) }
+  #drop b { font-size:16px }
+  .row { display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-top:14px }
+  label { font-size:13px; color:var(--mut) }
+  select, input[type=text] { background:#0f172a; color:var(--fg); border:1px solid var(--line);
+          border-radius:8px; padding:8px 10px; font-size:13px }
+  button { background:var(--acc); color:#082f49; border:0; border-radius:8px; padding:10px 20px;
+           font-size:14px; font-weight:600; cursor:pointer }
+  button:disabled { opacity:.45; cursor:not-allowed }
+  .bar { height:8px; background:#0f172a; border-radius:6px; overflow:hidden; margin:8px 0 }
+  .bar > i { display:block; height:100%; width:0%; background:linear-gradient(90deg,#38bdf8,#818cf8);
+             transition:width .4s }
+  .job { border-left:4px solid var(--line) }
+  .job.done { border-left-color:var(--ok) } .job.failed { border-left-color:var(--err) }
+  .tag { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; margin-left:6px;
+         background:#0f172a; color:var(--mut); border:1px solid var(--line) }
+  .tag.ok { color:var(--ok) } .tag.err { color:var(--err) }
+  .actions { margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+  .link { color:var(--acc); font-size:13px; text-decoration:none }
+  .mono { font-family:Consolas,monospace; font-size:12px; background:#0f172a; padding:8px 10px;
+          border-radius:8px; overflow:auto; white-space:pre; border:1px solid var(--line) }
+  .errbox { color:var(--err); font-size:13px; white-space:pre-wrap; margin-top:8px }
+  .okbox { color:var(--ok); font-size:13px }
+  .warnbox { color:var(--warn); font-size:13px }
+  details { margin-top:6px }
+  summary { cursor:pointer; color:var(--acc); font-size:13px }
+  ul { padding-left:20px } li { margin:4px 0; font-size:14px }
+  button.mini { font-size:12px; padding:5px 12px; background:#334155; color:#e2e8f0; border-radius:6px }
+  button.mini:hover { background:#475569 }
+  button.mini.danger:hover { background:#7f1d1d; color:#fecaca }
+  .empty { color:var(--mut); font-size:14px; padding:18px; text-align:center }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🛠️ Dify 插件离线重打包</h1>
+  <p class="mut">上传官方（或第三方）<code>.difypkg</code>，工具将把全部 Python 依赖（linux cp312 双架构 wheel）打进包内，生成<b>可在完全离线 Dify（1.16+/1.17，plugin_daemon 0.6.10）上本地安装</b>的离线包。打包机需可访问 PyPI。</p>
+
+  <div class="card">
+    <div id="drop">
+      <b>点击或拖拽 .difypkg 到此处</b><br>
+      <span class="mut" id="fname">尚未选择文件（如 webscraper.difypkg）</span>
+    </div>
+    <input type="file" id="file" accept=".difypkg,.zip" hidden>
+    <div class="row">
+      <label>目标架构
+        <select id="arch">
+          <option value="both">amd64 + arm64（单包双架构，推荐）</option>
+          <option value="x86_64">仅 amd64 (x86_64)</option>
+          <option value="aarch64">仅 arm64 (aarch64)</option>
+        </select>
+      </label>
+      <label>PyPI 源（打包机）
+        <input type="text" id="index" value="https://pypi.org/simple" size="30">
+      </label>
+      <label style="display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="sign" style="width:16px;height:16px"> 用组织私钥自签（安全路径）
+      </label>
+      <button id="go" disabled>开始重打包</button>
+    </div>
+    <div class="row"><span class="mut">目标 python 固定 3.12（与 plugin_daemon 一致）；内部先 uv 精确锁定，再按 PEP425 标签抓取 wheel 并做 sha256 校验，最后注入 <code>wheels/</code> 与离线依赖配置。勾选自签需服务端配置私钥（<code>DIFY_OFFLINE_PRIVATE_KEY</code>），目标端配合第三方公钥验签即可保持 <code>FORCE_VERIFYING_SIGNATURE=true</code>。</span></div>
+  </div>
+
+  <h2>任务队列
+    <button id="clear-failed" style="margin-left:12px;font-size:12px;background:#334155;color:#e2e8f0" disabled>🗑 清除失败任务</button>
+  </h2>
+  <div id="jobs"><div class="empty">暂无任务</div></div>
+
+  <h2>目标端部署说明（离线 Dify）</h2>
+  <div class="card">
+    <ol>
+      <li>把生成的 <code>…-offline.difypkg</code> 拷贝进内网。</li>
+      <li>在 Dify 部署目录的 <code>.env</code> 增加/调整（快速路径；安全路径见文档）：</li>
+    </ol>
+    <div class="mono">FORCE_VERIFYING_SIGNATURE=false
+PLUGIN_MAX_PACKAGE_SIZE=524288000
+NGINX_CLIENT_MAX_BODY_SIZE=500M</div>
+    <ul style="margin-top:10px">
+      <li>前一项：放行未上架/被重打包签名的本地插件（生产建议改用“自签+第三方公钥”安全路径，本期文档详述）；</li>
+      <li>后两项：离线包通常大于默认 50MB 限制（上传与解压双重限制）。</li>
+    </ul>
+    <div class="mono">docker compose up -d plugin_daemon nginx</div>
+    <p class="mut" style="margin-top:8px">3. 打开 Dify → <b>插件 → 本地文件安装</b> → 上传离线包 → 安装成功后即可使用（无需外网，依赖从包内 <code>wheels/</code> 安装）。</p>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let polling = false, jobsSeen = {};
+
+const drop = $('#drop'), fin = $('#file');
+drop.addEventListener('click', () => fin.click());
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over');
+  if (e.dataTransfer.files.length) fin.files = e.dataTransfer.files; showName(); });
+fin.addEventListener('change', showName);
+function showName() { $('#fname').textContent = fin.files[0] ? fin.files[0].name : '尚未选择文件';
+  $('#go').disabled = !fin.files[0]; }
+
+$('#go').addEventListener('click', async () => {
+  if (!fin.files[0]) return;
+  const fd = new FormData();
+  fd.append('file', fin.files[0]);
+  fd.append('arch', $('#arch').value);
+  fd.append('index_url', $('#index').value.trim() || 'https://pypi.org/simple');
+  fd.append('sign', $('#sign').checked ? 'true' : 'false');
+  const r = await fetch('/api/jobs', { method:'POST', body: fd });
+  const j = await r.json();
+  if (!r.ok) { alert('提交失败: ' + (j.detail || r.status)); return; }
+  jobsSeen[j.id] = 1; startPoll();
+});
+
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function startPoll(){
+  if (polling) return;
+  polling = true;
+  const t = setInterval(async () => {
+    try {
+      const r = await fetch('/api/jobs'); const list = await r.json();
+      renderJobs(list);
+      const active = list.filter(x => x.status === 'queued' || x.status === 'running');
+      if (!active.length && !list.some(x => !jobsSeen[x.id])) { clearInterval(t); polling = false; }
+      jobsSeen = {}; list.forEach(x => jobsSeen[x.id] = 1);
+    } catch (e) { /* keep polling */ }
+  }, 1500);
+}
+
+function renderJobs(list){
+  const box = $('#jobs');
+  if (!list.length){ box.innerHTML = '<div class="empty">暂无任务</div>'; }
+  else { box.innerHTML = list.map(jobCard).join(''); }
+  const hasFailed = list.some(x => x.status === 'failed' || x.status === 'error');
+  $('#clear-failed').disabled = !hasFailed;
+}
+
+function jobCard(j) {
+    const archTxt = (j.archs||[]).join(' + ');
+    const st = j.status;
+    const cls = st === 'done' ? 'job done' : st === 'failed' || st === 'error' ? 'job failed' : 'job';
+    const tag = st === 'done' ? '<span class="tag ok">✓ 完成</span>'
+             : st === 'failed' || st === 'error' ? '<span class="tag err">✗ 失败</span>'
+             : '<span class="tag">… ' + esc(j.status) + '</span>';
+    const sigTag = j.signed ? '<span class="tag ok">自签</span>' : '';
+    const pct = j.progress ?? 0;
+    const acts = [];
+    if (st === 'done' && j.artifact_file){
+      acts.push(`<a class="link" href="/api/jobs/${j.id}/download"><b>⬇ 下载${j.signed ? '签名' : ''}离线包</b></a>`);
+      acts.push(`<a class="link" href="/api/jobs/${j.id}/report" target="_blank">报告 JSON</a>`);
+    }
+    if (st === 'failed' || st === 'error'){
+      acts.push(`<button class="mini" data-act="retry" data-id="${j.id}">↻ 重试</button>`);
+    }
+    if (st === 'done' || st === 'failed' || st === 'error'){
+      acts.push(`<button class="mini danger" data-act="del" data-id="${j.id}">删除</button>`);
+    }
+    if (j.ok === true && j.wheels != null) acts.push(`<span class="mut">锁定 ${j.locked} · 内嵌 wheel ${j.wheels}</span>`);
+    const errs = (j.errors||[]).map(e => esc(e)).join('\n');
+    return `<div class="card ${cls}">
+      <div><b>${esc(j.filename)}</b> <span class="tag">${esc(archTxt)}</span> ${tag} ${sigTag}</div>
+      <div class="bar"><i style="width:${Math.max(0,Math.min(100,pct))}%"></i></div>
+      <div class="mut">${esc(j.phase||'')} (${pct}%)</div>
+      ${errs ? `<div class="errbox">${errs}</div>` : ''}
+      <div class="actions">${acts.join('')}</div>
+    </div>`;
+}
+
+async function refreshNow(){
+  try { const r = await fetch('/api/jobs'); renderJobs(await r.json()); } catch (e) {}
+}
+
+$('#clear-failed').addEventListener('click', async () => {
+  if (!confirm('确定清除所有失败任务？')) return;
+  const r = await fetch('/api/jobs/clear-failed', { method:'POST' });
+  const d = await r.json().catch(()=>({}));
+  alert('已清除失败任务：' + (d.removed||[]).length + ' 个');
+  refreshNow();
+});
+
+$('#jobs').addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('button[data-act]');
+  if (!btn) return;
+  const id = btn.dataset.id, act = btn.dataset.act;
+  if (act === 'retry') {
+    if (!confirm('确定重试该任务？将按原上传与配置重新打包。')) return;
+    const r = await fetch(`/api/jobs/${id}/retry`, { method:'POST' });
+    if (!r.ok) { alert('重试失败：' + (await r.text())); return; }
+    startPoll(); refreshNow();
+  } else if (act === 'del') {
+    if (!confirm('确定删除该任务及其产物？')) return;
+    const r = await fetch(`/api/jobs/${id}`, { method:'DELETE' });
+    if (!r.ok) { alert('删除失败：' + (await r.text())); return; }
+    refreshNow();
+  }
+});
+
+startPoll();
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+[project]
+name = "dify-offline-repack"
+version = "0.1.0"
+description = "Repackage Dify official plugin .difypkg into offline-installable package with all Python deps bundled (linux amd64/arm64, cp312)."
+requires-python = ">=3.10"
+dependencies = [
+    "PyYAML>=6.0",
+    "tomli>=2.0; python_version < '3.11'",
+    "tomli-w>=1.0",
+]
+
+[project.scripts]
+dify-offline-repack = "dify_offline_repack.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["dify_offline_repack*"]
