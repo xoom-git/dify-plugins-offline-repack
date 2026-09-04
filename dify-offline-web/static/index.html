@@ -3,86 +3,102 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dify 插件离线重打包</title>
+<title>Dify 插件离线重打包工具</title>
 <style>
   :root{
-    --bg:#f4f6f9; --panel:#fff; --line:#e3e7ee; --line2:#d5dae3;
-    --fg:#1c2430; --mut:#6a7483; --acc:#2563eb; --acc2:#1e4fc4;
-    --ok:#16794c; --err:#b42318; --chip:#eef1f6; --chip-acc:#eaf1ff;
+    --bg1:#f4f8ff; --bg2:#eaf2ff;
+    --panel:#ffffff; --line:#e2eaf8; --line2:#c9d8f2;
+    --fg:#15223f; --mut:#5d6f93; --faint:#8fa1c3;
+    --acc:#2f5bff; --acc2:#1f3fd0; --acc-soft:#e8efff;
+    --ok:#14875a; --err:#d33a3a; --warn:#b06a00;
+    --shadow:0 1px 2px rgba(23,51,148,.05),0 8px 24px -12px rgba(23,51,148,.12);
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);
-       font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",Roboto,sans-serif}
+  body{margin:0;min-height:100vh;
+       background:linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 100%);
+       color:var(--fg);
+       font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,sans-serif}
   a{color:var(--acc);text-decoration:none}
-  .top{background:#fff;border-bottom:1px solid var(--line)}
-  .top-in{max-width:1180px;margin:0 auto;padding:13px 22px;display:flex;align-items:baseline;gap:12px}
-  .brand{font-size:17px;font-weight:700}
-  .brand small{color:var(--mut);font-weight:500;font-size:12px;margin-left:8px}
-  .wrap{max-width:1180px;margin:0 auto;padding:20px 22px 70px}
-  h2{font-size:14px;margin:0;color:#303a4b}
-  h2 .sub{color:var(--mut);font-weight:400;font-size:12px;margin-left:6px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px}
-  .card-h{padding:11px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
-  .card-b{padding:14px}
-  .btn{display:inline-flex;align-items:center;border:1px solid var(--line2);background:#fff;color:#2b3444;
-       padding:6px 12px;border-radius:7px;font-size:13px;cursor:pointer}
-  .btn:hover{background:#f2f4f8}
-  .btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
-  .btn.primary:hover{background:var(--acc2)}
-  .btn.danger:hover{background:#fdeaec;border-color:#f0c2c2;color:var(--err)}
+  .top{background:rgba(255,255,255,.86);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .top-in{max-width:1180px;margin:0 auto;padding:14px 22px;display:flex;align-items:baseline;gap:12px}
+  .brand{font-size:17px;font-weight:700;color:var(--fg);letter-spacing:.2px}
+  .brand .dot{color:var(--acc)}
+  .brand small{color:var(--mut);font-weight:400;font-size:12px;margin-left:10px}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 22px 80px}
+  h2{font-size:13px;margin:0;color:var(--fg);letter-spacing:.4px;font-weight:650}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+        box-shadow:var(--shadow)}
+  .card-h{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+  .card-b{padding:16px}
+  .btn{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line2);background:#fff;
+       color:#2e3f63;padding:6px 12px;border-radius:9px;font-size:13px;cursor:pointer;transition:.15s}
+  .btn:hover{border-color:var(--acc);color:var(--acc);background:#fbfdff}
+  .btn.primary{background:linear-gradient(180deg,#3b63ff,#2c51e8);border-color:transparent;color:#fff;
+       box-shadow:0 2px 6px -1px rgba(47,91,255,.4)}
+  .btn.primary:hover{filter:brightness(1.05);color:#fff}
   .btn:disabled{opacity:.45;cursor:not-allowed}
-  .btn.sm{padding:2px 9px;font-size:12px;border-radius:6px}
-  .drop{border:1.5px dashed var(--line2);border-radius:9px;padding:26px 16px;text-align:center;
-        background:#fbfcfe;color:var(--mut);cursor:pointer}
-  .drop b{color:var(--fg);display:block;font-size:14px;margin-bottom:3px}
-  .drop.drag{border-color:var(--acc);background:#eef5ff}
+  .btn.sm{padding:2px 9px;font-size:12px;border-radius:7px}
+  .btn.danger{color:#9f3a3a}
+  .btn.danger:hover{background:#fdf1f1;border-color:#f2cbcb;color:var(--err)}
+  .card-h .sub{color:var(--faint);font-size:12px;font-weight:400}
+  .drop{border:1.5px dashed var(--line2);border-radius:12px;padding:30px 16px;text-align:center;
+        background:linear-gradient(180deg,#fafcff,#f2f7ff);color:var(--mut);cursor:pointer;
+        transition:.15s}
+  .drop b{color:#2a3a63;display:block;font-size:14px;margin-bottom:4px}
+  .drop.drag{border-color:var(--acc);background:#ecf3ff}
   .files{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-  .fchip{background:var(--chip);border:1px solid var(--line);padding:2px 9px;border-radius:999px;font-size:12px}
-  .urlrow{display:flex;gap:8px;margin-top:10px}
+  .fchip{background:#eef3fe;border:1px solid var(--line);padding:2px 10px;border-radius:999px;font-size:12px;color:#3a4f7c}
+  .urlrow{display:flex;gap:8px;margin-top:12px}
   .urlrow input[type=text]{flex:1}
-  .opts{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:12px}
+  .opts{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-top:14px}
   label{font-size:13px;color:var(--mut)}
-  select,input[type=text]{background:#fff;border:1px solid var(--line2);border-radius:7px;padding:6px 9px;font-size:13px}
+  select,input[type=text]{background:#fff;border:1px solid var(--line2);border-radius:9px;padding:7px 10px;
+        font-size:13px;color:var(--fg);transition:.15s}
+  select:focus,input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px rgba(47,91,255,.12)}
   input[type=checkbox]{accent-color:var(--acc)}
-  .go{display:flex;justify-content:flex-end;margin-top:12px;gap:8px}
-  .hint{color:var(--mut);font-size:12px;margin-top:10px;line-height:1.6}
-  .layout{display:grid;grid-template-columns:minmax(0,1fr) 356px;gap:18px;margin-top:18px;align-items:start}
+  .go{display:flex;justify-content:flex-end;margin-top:14px}
+  .hint{color:var(--mut);font-size:12px;margin-top:12px;line-height:1.7}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:18px;margin-top:18px;align-items:start}
   .col{display:flex;flex-direction:column;gap:18px;min-width:0}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  th{text-align:left;color:var(--mut);font-weight:600;font-size:12px;padding:7px 10px;border-bottom:1px solid var(--line2)}
-  td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{text-align:left;color:var(--faint);font-weight:600;font-size:11px;letter-spacing:.5px;padding:8px 12px;
+     border-bottom:1px solid var(--line);text-transform:uppercase}
+  td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
   tr:last-child td{border-bottom:none}
   .mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
-  .tag{display:inline-block;padding:0 7px;border-radius:5px;font-size:11px;background:var(--chip);color:#4a5568;border:1px solid var(--line)}
-  .tag.ok{color:var(--ok);background:#ecfdf3;border-color:#b8e6cb}
-  .tag.err{color:var(--err);background:#fef2f2;border-color:#f3c7c7}
-  .tag.acc{color:var(--acc2);background:var(--chip-acc);border-color:#c9ddfa}
-  .job{border-bottom:1px solid var(--line);padding:11px 14px}
+  .tag{display:inline-block;padding:0 8px;border-radius:6px;font-size:11px;background:#eef2fb;color:#55689a;
+       border:1px solid var(--line)}
+  .tag.ok{color:var(--ok);background:#e9f9f2;border-color:#bdebd6}
+  .tag.err{color:var(--err);background:#fdf0f0;border-color:#f3cfcf}
+  .tag.acc{color:var(--acc2);background:var(--acc-soft);border-color:#cfe0ff}
+  .job{border-bottom:1px solid var(--line);padding:12px 16px}
   .job:last-child{border-bottom:none}
   .job-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .job-head b{font-size:13px}
   .grow{flex:1}
-  .bar{height:5px;background:#e9edf3;border-radius:4px;overflow:hidden;margin-top:8px}
-  .bar>i{display:block;height:100%;background:var(--acc);width:0%;transition:width .4s}
+  .bar{height:5px;background:#e7eefb;border-radius:6px;overflow:hidden;margin-top:9px}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,#5f8bff,#2f5bff);width:0%;transition:width .4s}
   .meta{color:var(--mut);font-size:12px;margin-top:4px}
   .errbox{color:var(--err);font-size:12px;white-space:pre-wrap;margin-top:6px;max-height:80px;overflow:auto}
-  .empty{color:var(--mut);text-align:center;padding:22px;font-size:13px}
-  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .stat{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-  .stat .k{color:var(--mut);font-size:11px}
-  .stat .v{font-size:17px;font-weight:700;margin-top:2px}
+  .empty{color:var(--faint);text-align:center;padding:26px;font-size:13px}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{background:linear-gradient(180deg,#fbfdff,#f3f8ff);border:1px solid var(--line);border-radius:11px;padding:9px 12px}
+  .stat .k{color:var(--faint);font-size:11px}
+  .stat .v{font-size:18px;font-weight:750;margin-top:2px;color:var(--fg)}
   .stat .v.ok{color:var(--ok)} .stat .v.busy{color:var(--acc)} .stat .v.bad{color:var(--err)}
-  tr.selrow td{background:#f3f7ff}
-  .kv{margin:0;font-size:12px;color:var(--mut)}
-  .kv b{color:#3b4657}
-  .notes ol{margin:6px 0 0;padding-left:18px;font-size:12px;line-height:1.7}
-  .notes pre{background:#f6f8fb;border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:11px;overflow:auto;margin:8px 0 0}
+  tr.selrow td{background:#eef5ff}
+  .kv{display:grid;gap:3px;margin:12px 0 0;font-size:12px;color:var(--mut)}
+  .kv div{display:flex;justify-content:space-between;gap:8px}
+  .kv b{color:#3a4f7c;font-weight:600;text-align:right}
+  .notes pre{background:#f6f9ff;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:11px;
+       overflow:auto;margin:8px 0 0;color:#33456e}
+  .notes ol{margin:8px 0 0;padding-left:18px;font-size:12px;line-height:1.8;color:#45587f}
   @media(max-width:1020px){.layout{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header class="top"><div class="top-in">
-  <span class="brand">Dify 插件离线重打包<small>官方插件 → 可离线安装的 .difypkg</small></span>
+  <span class="brand">Dify 插件离线重打包<span class="dot">工具</span><small>官方插件 → 可离线安装的 .difypkg</small></span>
   <span class="grow"></span>
   <span id="appver" style="color:var(--mut);font-size:12px"></span>
 </div></header>
