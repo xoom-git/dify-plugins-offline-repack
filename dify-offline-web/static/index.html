@@ -93,6 +93,11 @@
   .notes pre{background:#f6f9ff;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:11px;
        overflow:auto;margin:8px 0 0;color:#33456e}
   .notes ol{margin:8px 0 0;padding-left:18px;font-size:12px;line-height:1.8;color:#45587f}
+  .searchline{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center}
+  .searchline input{flex:1;background:#f7faff}
+  .pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:9px 14px;
+         border-top:1px solid var(--line);font-size:12px;color:var(--mut)}
+  .pager .pi{min-width:86px;text-align:center}
   @media(max-width:1020px){.layout{grid-template-columns:1fr}}
 </style>
 </head>
@@ -151,7 +156,9 @@
           <span class="grow"></span>
           <button class="btn sm danger" id="clear-failed" disabled>清除失败任务</button>
         </div>
+        <div class="searchline"><input type="text" id="jobsearch" placeholder="搜索：文件名 / 插件名 / 作者 / 状态 …"></div>
         <div id="jobs"><div class="empty">暂无任务</div></div>
+        <div class="pager" id="jobpager"></div>
       </section>
 
     </div>
@@ -191,12 +198,15 @@ NGINX_CLIENT_MAX_BODY_SIZE=500M</pre>
       <section class="card">
         <div class="card-h">
           <h2>产物版本库</h2>
+          <span class="sub" id="artcount"></span>
           <span class="grow"></span>
           <label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" id="selall"> 全选</label>
           <button class="btn sm primary" id="dlsel" disabled>下载所选</button>
           <a class="btn sm" id="dlall" href="/api/download-all" style="display:none">下载全部</a>
         </div>
+        <div class="searchline"><input type="text" id="artsearch" placeholder="搜索：插件名 / 作者 / 版本 / 架构 …"></div>
         <div id="arts"><div class="empty">暂无已完成产物</div></div>
+        <div class="pager" id="artpager"></div>
       </section>
 
     </div>
@@ -254,31 +264,62 @@ $('#urlgo').onclick=async()=>{
   $('#urlgo').disabled=false; $('#urlgo').textContent='URL 上传';
 };
 
-/* poll */
-function startPoll(){ if(polling)return; polling=true;
-  const t=setInterval(async()=>{ try{ await refresh(); }catch(e){} },1600);
+/* data cache + poll */
+let _jobs=[], _arts=[];
+let jobQ='', artQ='', jobPage=1, artPage=1;
+const PAGE_JOB=12, PAGE_ART=7;
+let selSet=new Set();
+
+function startPoll(){ if(polling) return; polling=true;
+  setInterval(async()=>{ try{ await refresh(); }catch(e){} },1600);
 }
 async function refresh(){
-  const [jlist,arts]=await Promise.all([fetch('/api/jobs').then(r=>r.json()), fetch('/api/artifacts').then(r=>r.json())]);
-  renderJobs(jlist); renderArts(arts.items||[]); renderStats(jlist);
+  const [jl,ar]=await Promise.all([fetch('/api/jobs').then(r=>r.json()), fetch('/api/artifacts').then(r=>r.json())]);
+  _jobs=jl; _arts=ar.items||[];
+  const live=new Set(_arts.map(a=>a.job_id));
+  for(const id of [...selSet]) if(!live.has(id)) selSet.delete(id);
+  renderAll();
+}
+const norm=s=>String(s??'').toLowerCase();
+const jobMatch=(j,q)=> !q || norm([j.filename,j.status,j.phase,j.author,j.name,j.version,archTxt(j.archs)].join(' ')).includes(q);
+const artMatch=(a,q)=>{ if(!q)return true; const p=a.plugin||{};
+  return norm([p.name,p.author,p.version,a.filename,a.artifact_file,archTxt(a.archs)].join(' ')).includes(q); };
+const clampP=(p,m)=>Math.min(Math.max(1,p),Math.max(1,m));
+
+function renderAll(){ renderJobs(_jobs); renderArts(_arts); renderStats(_jobs); }
+
+/* ---------- pager helpers ---------- */
+function pagerHtml(cur,total){
+  if(!total) return '';
+  return `<button class="btn sm" data-pg="${cur-1}" ${cur<=1?'disabled':''}>上一页</button>
+          <span class="pi">第 ${cur} / ${total} 页</span>
+          <button class="btn sm" data-pg="${cur+1}" ${cur>=total?'disabled':''}>下一页</button>`;
+}
+function bindPager(el){
+  el.onclick=e=>{ const b=e.target.closest('button[data-pg]'); if(!b||b.disabled) return;
+    const go=Number(b.dataset.pg);
+    if(el.id==='jobpager'){ jobPage=go; } else { artPage=go; }
+    renderAll();
+  };
 }
 
-/* artifacts (right column) */
-let selSet = new Set();
+/* ---------- artifacts (right column, 7/page) ---------- */
 function renderArts(items){
   const box=$('#arts');
-  const live = new Set(items.map(a=>a.job_id));
-  for(const id of [...selSet]){ if(!live.has(id)) selSet.delete(id); }
-  const hasAny = items.length>0;
-  $('#dlall').style.display=hasAny?'':'none';
-  $('#dlsel').disabled = selSet.size===0;
-  $('#dlsel').textContent = selSet.size? `下载所选（${selSet.size}）`:'下载所选';
-  $('#selall').checked = hasAny && selSet.size===items.length;
-  $('#selall').indeterminate = selSet.size>0 && selSet.size<items.length;
-  if(!items.length){ box.innerHTML='<div class="empty">暂无已完成产物</div>'; return; }
-  box.innerHTML=`<table><thead><tr><th style="width:28px"></th><th>插件 / 版本</th><th>架构</th><th></th></tr></thead><tbody>`+
-    items.map(a=>{ const p=a.plugin||{};
+  const filtered=items.filter(a=>artMatch(a,artQ));
+  const pages=Math.max(1,Math.ceil(filtered.length/PAGE_ART));
+  artPage=clampP(artPage,pages);
+  const s=(artPage-1)*PAGE_ART, page=filtered.slice(s,s+PAGE_ART);
+  $('#artcount').textContent=`共 ${items.length} 项`;
+  $('#dlall').style.display=items.length?'':'none';
+  $('#dlsel').disabled=selSet.size===0;
+  $('#dlsel').textContent=selSet.size?`下载所选（${selSet.size}）`:'下载所选';
+  if(!filtered.length){ box.innerHTML='<div class="empty">'+(items.length?'无匹配产物':'暂无已完成产物')+'</div>';
+    $('#artpager').innerHTML=''; updateSelUI(); return; }
+  box.innerHTML=`<table><thead><tr><th style="width:40px">序号</th><th style="width:26px"></th><th>插件 / 版本</th><th>架构</th><th></th></tr></thead><tbody>`+
+    page.map((a,idx)=>{ const p=a.plugin||{}; const num=s+idx+1;
       return `<tr class="${selSet.has(a.job_id)?'selrow':''}">
+            <td class="meta">${num}</td>
             <td><input type="checkbox" class="rowsel" data-id="${a.job_id}" ${selSet.has(a.job_id)?'checked':''}></td>
             <td><b>${esc(p.name||a.filename)}</b> <span class="mono">${esc(p.version||'')}</span>
                 ${a.signed?'<span class="tag acc">自签</span>':''}
@@ -286,14 +327,16 @@ function renderArts(items){
             <td class="meta">${esc(archTxt(a.archs))}</td>
             <td><a class="btn sm" href="/api/jobs/${a.job_id}/download">下载</a></td></tr>`; }).join('')+
     `</tbody></table>`;
+  $('#artpager').innerHTML=filtered.length>PAGE_ART?pagerHtml(artPage,pages):'';
+  updateSelUI();
 }
 function updateSelUI(){
   const rows=[...document.querySelectorAll('.rowsel')];
   const n=rows.length, ck=rows.filter(r=>r.checked).length;
-  const sa=$('#selall'); sa.checked = n>0 && ck===n; sa.indeterminate = ck>0 && ck<n;
-  const dl=$('#dlsel'); dl.disabled = ck===0; dl.textContent = ck?`下载所选（${ck}）`:'下载所选';
+  const sa=$('#selall'); sa.checked=n>0&&ck===n; sa.indeterminate=ck>0&&ck<n;
+  const dl=$('#dlsel'); dl.disabled=selSet.size===0; dl.textContent=selSet.size?`下载所选（${selSet.size}）`:'下载所选';
 }
-function triggerBlobDownload(url, filename){
+function triggerBlobDownload(url,filename){
   fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
               body:JSON.stringify({job_ids:[...selSet]})}).then(r=>{ if(!r.ok) throw new Error(r.status);
     return r.blob(); }).then(b=>{ const u=URL.createObjectURL(b); const a=document.createElement('a');
@@ -307,18 +350,23 @@ $('#selall').onchange=e=>{
 };
 $('#dlsel').onclick=()=>{ if(!selSet.size) return; triggerBlobDownload('/api/download-selected','selected-'+Date.now()+'.zip'); };
 $('#arts').onchange=e=>{ const c=e.target.closest('.rowsel'); if(!c)return;
-  if(c.checked) selSet.add(c.dataset.id); else selSet.delete(c.dataset.id);
-  updateSelUI();
-};
+  if(c.checked) selSet.add(c.dataset.id); else selSet.delete(c.dataset.id); updateSelUI(); };
 
-/* job list (left bottom) */
+/* ---------- job list (left, 12/page) ---------- */
 function renderJobs(list){
   const box=$('#jobs');
-  $('#qcount').textContent=`共 ${list.length} 条`;
-  box.innerHTML=list.length?list.map(jobCard).join(''):'<div class="empty">暂无任务，请从左侧新建</div>';
+  const filtered=list.filter(j=>jobMatch(j,jobQ));
+  const pages=Math.max(1,Math.ceil(filtered.length/PAGE_JOB));
+  jobPage=clampP(jobPage,pages);
+  const s=(jobPage-1)*PAGE_JOB, page=filtered.slice(s,s+PAGE_JOB);
+  $('#qcount').textContent=`共 ${filtered.length} 条`;
   $('#clear-failed').disabled=!list.some(x=>x.status==='failed'||x.status==='error');
+  if(!filtered.length){ box.innerHTML='<div class="empty">'+(list.length?'无匹配任务':'暂无任务，请从左侧新建')+'</div>';
+    $('#jobpager').innerHTML=''; return; }
+  box.innerHTML=page.map((j,idx)=>jobCard(j,s+idx+1)).join('');
+  $('#jobpager').innerHTML=filtered.length>PAGE_JOB?pagerHtml(jobPage,pages):'';
 }
-function jobCard(j){
+function jobCard(j,num){
   const st=j.status, pct=j.progress??0;
   const tag= st==='done'?'<span class="tag ok">完成</span>'
             : st==='failed'||st==='error'?'<span class="tag err">失败</span>'
@@ -329,17 +377,19 @@ function jobCard(j){
   if(st==='failed'||st==='error') acts.push(`<button class="btn sm" data-act="retry" data-id="${j.id}">重试</button>`);
   if(st!=='queued'&&st!=='running') acts.push(`<button class="btn sm danger" data-act="del" data-id="${j.id}">删除</button>`);
   const errs=(j.errors||[]).map(esc).join('\n');
+  const plugin=(j.author||j.name)?` · ${esc(j.author||'')}/${esc(j.name||'')} v${esc(j.version||'-')}`:'';
   return `<div class="job">
-    <div class="job-head"><b>${esc(j.filename)}</b><span class="tag">${esc(archTxt(j.archs))}</span>${tag}${j.signed?'<span class="tag acc">自签</span>':''}
+    <div class="job-head"><span class="tag">#${num}</span><b>${esc(j.filename)}</b>
+      <span class="tag">${esc(archTxt(j.archs))}</span>${tag}${j.signed?'<span class="tag acc">自签</span>':''}
       ${st==='done'?`<span class="meta">${j.wheels} 依赖 · 自检${j.recheck?'通过':'未通过'}</span>`:''}
       <span class="grow"></span>${acts.join('')}</div>
     <div class="bar"><i style="width:${Math.max(0,Math.min(100,pct))}%"></i></div>
-    <div class="meta">${esc(j.phase||'')} · ${pct}%${j.created?' · '+fmtTime(j.created):''}</div>
+    <div class="meta">${esc(j.phase||'')} · ${pct}%${plugin}${j.created?' · '+fmtTime(j.created):''}</div>
     ${errs?`<div class="errbox">${errs}</div>`:''}
   </div>`;
 }
 
-/* status (right column) */
+/* ---------- status (right column) ---------- */
 function renderStats(list){
   const c={run:0,done:0,failed:0};
   list.forEach(j=>{ if(j.status==='queued'||j.status==='running')c.run++; else if(j.status==='done')c.done++; else c.failed++; });
@@ -349,6 +399,10 @@ function renderStats(list){
     `<div class="stat"><div class="k">失败</div><div class="v bad">${c.failed}</div></div>`+
     `<div class="stat"><div class="k">任务总数</div><div class="v">${list.length}</div></div>`;
 }
+
+/* search inputs */
+$('#jobsearch').oninput=e=>{ jobQ=e.target.value.trim().toLowerCase(); jobPage=1; renderAll(); };
+$('#artsearch').oninput=e=>{ artQ=e.target.value.trim().toLowerCase(); artPage=1; renderAll(); };
 
 /* manage */
 $('#clear-failed').onclick=async()=>{ if(!confirm('清除所有失败/错误任务？'))return; await fetch('/api/jobs/clear-failed',{method:'POST'}); refresh(); };
@@ -361,6 +415,8 @@ $('#jobs').onclick=async ev=>{ const b=ev.target.closest('button[data-act]'); if
     if(!r.ok)alert('删除失败：'+(await r.text()));
   }
 };
+bindPager($('#jobpager'));
+bindPager($('#artpager'));
 
 refresh(); startPoll();
 </script>

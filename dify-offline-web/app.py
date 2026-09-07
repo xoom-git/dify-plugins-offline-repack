@@ -141,7 +141,7 @@ def index():
 def meta():
     return {
         "app": "dify-offline-repack",
-        "app_version": "0.2.3",
+        "app_version": "0.2.4",
         "engine_version": getattr(repack_engine, "__version__", "0.1.0") if hasattr(repack_engine, "__version__") else "0.1.0",
         "target_daemon": "langgenius/dify-plugin-daemon:0.6.10-local (python 3.12 / uv)",
         "workers": int(os.environ.get("DIFY_OFFLINE_WORKERS", "2")),
@@ -205,6 +205,8 @@ def list_jobs(limit: int = 20):
                 "archs": j.get("archs"), "created": j.get("created"),
                 "ok": j.get("ok"), "signed": j.get("signed", False),
                 "artifact_file": j.get("artifact_file"),
+                "author": j.get("plugin_author"), "name": j.get("plugin_name"),
+                "version": j.get("plugin_version"),
                 "errors": j.get("errors"), "locked": j.get("locked"),
                 "wheels": j.get("wheels"), "recheck": j.get("recheck"),
             })
